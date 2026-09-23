@@ -16,7 +16,7 @@ import (
 	"github.com/UnrealTemplier/gleanomess-cli/internal/scraper"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 var invalidHostCharsRegex = regexp.MustCompile(`[^a-zA-Z0-9.\-_]`)
 
@@ -33,6 +33,7 @@ func run(args []string) int {
 		outputDir string
 		workers   int
 		verbose   bool
+		showVer   bool
 	)
 
 	fs.IntVar(&limitSize, "limit-size", 0, "filter images with max(width, height) >= N")
@@ -40,6 +41,7 @@ func run(args []string) int {
 	fs.IntVar(&workers, "workers", 4, "number of concurrent download workers")
 	fs.BoolVar(&verbose, "verbose", false, "enable detailed verbose output")
 	fs.BoolVar(&verbose, "v", false, "enable detailed verbose output (shorthand)")
+	fs.BoolVar(&showVer, "version", false, "show program version and exit")
 
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "GleanoMess %s - Extract and download raster images from a webpage\n\n", version)
@@ -56,6 +58,11 @@ func run(args []string) int {
 			return 0
 		}
 		return 2
+	}
+
+	if showVer {
+		fmt.Printf("GleanoMess %s\n", version)
+		return 0
 	}
 
 	remaining := fs.Args()
@@ -138,15 +145,25 @@ func run(args []string) int {
 		}
 	}
 
-	// Scrape HTML for image candidates
-	candidates, err := scraper.Scrape(pageResult.Response.Body, effectiveBaseURL)
+	// Scrape HTML for image candidates and slots
+	slots, err := scraper.Scrape(pageResult.Response.Body, effectiveBaseURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing HTML from %s: %v\n", rawPageURL, err)
 		return 1
 	}
 
-	fmt.Printf("Found %d unique image candidates.\n\n", len(candidates))
-	if len(candidates) == 0 {
+	totalCandidates := 0
+	for _, s := range slots {
+		totalCandidates += len(s.Candidates)
+	}
+
+	if verbose {
+		fmt.Printf("Found %d image slots (%d candidates).\n\n", len(slots), totalCandidates)
+	} else {
+		fmt.Printf("Found %d image slots.\n\n", len(slots))
+	}
+
+	if len(slots) == 0 {
 		fmt.Println("Done.")
 		fmt.Println("Downloaded: 0")
 		fmt.Println("Skipped:    0")
@@ -164,7 +181,7 @@ func run(args []string) int {
 		PageURL:   rawPageURL,
 	})
 
-	summary, err := dl.DownloadAll(ctx, candidates)
+	summary, err := dl.DownloadAll(ctx, slots)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error during download process: %v\n", err)
 		return 1

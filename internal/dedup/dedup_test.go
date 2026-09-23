@@ -3,6 +3,8 @@ package dedup
 import (
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -76,5 +78,98 @@ func TestComputeFileSHA256(t *testing.T) {
 	expected := "2be607de6713a3d0190be44ff7b26a7aee9e6e29549c1471fa36703424598dc4"
 	if hash != expected {
 		t.Errorf("expected %s, got %s", expected, hash)
+	}
+}
+
+func TestContentTracker_FinalizeConcurrency(t *testing.T) {
+	tracker := NewContentTracker()
+	hash := "a1b2c3d4e5f67890"
+
+	const concurrency = 50
+	var (
+		saveCount  int32
+		dupCount   int32
+		firstCount int32
+		wg         sync.WaitGroup
+	)
+
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func(id int) {
+			defer wg.Done()
+
+			filename, isDup, err := tracker.Finalize(hash, func() (string, error) {
+				atomic.AddInt32(&saveCount, 1)
+				return "unique_image.png", nil
+			})
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if isDup {
+				atomic.AddInt32(&dupCount, 1)
+				if filename != "unique_image.png" {
+					t.Errorf("expected duplicate to return first filename 'unique_image.png', got %q", filename)
+				}
+			} else {
+				atomic.AddInt32(&firstCount, 1)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	if saveCount != 1 {
+		t.Errorf("expected saveFn to be called exactly 1 time, got %d", saveCount)
+	}
+	if firstCount != 1 {
+		t.Errorf("expected exactly 1 worker to get isDup=false, got %d", firstCount)
+	}
+	if dupCount != concurrency-1 {
+		t.Errorf("expected %d workers to get isDup=true, got %d", concurrency-1, dupCount)
+	}
+}
+
+func TestContentTracker_FinalizeRollbackOnError(t *testing.T) {
+	tracker := NewContentTracker()
+	hash := "fail_then_succeed_hash"
+
+	// 1. Finalize fails with error
+	expectedErr := os.ErrPermission
+	filename, isDup, err := tracker.Finalize(hash, func() (string, error) {
+		return "", expectedErr
+	})
+	if err != expectedErr {
+		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	}
+	if isDup {
+		t.Errorf("isDup should be false on failure")
+	}
+	if filename != "" {
+		t.Errorf("filename should be empty on failure")
+	}
+
+	// 2. Check that hash was NOT registered
+	if _, ok := tracker.Check(hash); ok {
+		t.Errorf("hash should not be registered after failed save")
+	}
+
+	// 3. Second attempt succeeds and registers hash
+	filename, isDup, err = tracker.Finalize(hash, func() (string, error) {
+		return "recovered.png", nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error on second attempt: %v", err)
+	}
+	if isDup {
+		t.Errorf("isDup should be false on successful first save")
+	}
+	if filename != "recovered.png" {
+		t.Errorf("expected 'recovered.png', got %q", filename)
+	}
+
+	// 4. Subsequent check returns the registered filename
+	if existing, ok := tracker.Check(hash); !ok || existing != "recovered.png" {
+		t.Errorf("expected Check to return 'recovered.png', got %q (ok=%v)", existing, ok)
 	}
 }

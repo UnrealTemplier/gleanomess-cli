@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux amd64
+            os: ubuntu-latest
+            output_name: gleanomess
+            artifact_name: gleanomess-linux-amd64
+            goarch: amd64
+            race: true
+          - name: Windows amd64
+            os: windows-latest
+            output_name: gleanomess.exe
+            artifact_name: gleanomess-windows-amd64.exe
+            goarch: amd64
+            race: false
+          - name: macOS arm64
+            os: macos-latest
+            output_name: gleanomess
+            artifact_name: gleanomess-macos-arm64
+            goarch: arm64
+            race: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      - name: Run tests with race detector (Linux)
+        if: matrix.race
+        run: go test -v -race ./...
+
+      - name: Run tests
+        if: "!matrix.race"
+        run: go test -v ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Build executable
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p build
+          go build -v -ldflags="-s -w" -o "build/${{ matrix.output_name }}" ./cmd/gleanomess
+          if [ "${{ matrix.output_name }}" != "gleanomess.exe" ]; then
+            chmod +x "build/${{ matrix.output_name }}"
+            file "build/${{ matrix.output_name }}"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: build/${{ matrix.output_name }}
+          if-no-files-found: error

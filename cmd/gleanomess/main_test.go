@@ -75,4 +75,14 @@ func TestCLIVerifications(t *testing.T) {
 	if code := run([]string{"--workers", "0", "https://example.com"}); code != 2 {
 		t.Errorf("expected exit code 2 for workers=0, got %d", code)
 	}
+
+	// Version flag -> exit code 0
+	if code := run([]string{"--version"}); code != 0 {
+		t.Errorf("expected exit code 0 for --version, got %d", code)
+	}
+
+	// Help flag -> exit code 0
+	if code := run([]string{"--help"}); code != 0 {
+		t.Errorf("expected exit code 0 for --help, got %d", code)
+	}
 }

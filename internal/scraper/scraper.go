@@ -40,10 +40,33 @@ type Candidate struct {
 	Descriptor  string // e.g. "1600w" or "2x"
 }
 
+// Slot represents a logical image slot on a webpage, containing one or more ranked candidates.
+// Candidates are ordered by priority (highest priority first) to form a fallback chain.
+type Slot struct {
+	Candidates []*Candidate
+}
+
+// Best returns the highest-priority candidate in the slot, or nil if empty.
+func (s *Slot) Best() *Candidate {
+	if len(s.Candidates) == 0 {
+		return nil
+	}
+	return s.Candidates[0]
+}
+
+// FlattenCandidates flattens all candidates across slots into a slice.
+func FlattenCandidates(slots []*Slot) []*Candidate {
+	var result []*Candidate
+	for _, s := range slots {
+		result = append(result, s.Candidates...)
+	}
+	return result
+}
+
 var cssURLRegex = regexp.MustCompile(`(?i)url\(\s*(?:['"]?)([^'")]+)(?:['"]?)\s*\)`)
 
-// Scrape extracts ranked and deduplicated image candidates from an HTML document.
-func Scrape(r io.Reader, pageURL *url.URL) ([]*Candidate, error) {
+// Scrape extracts ranked image slots from an HTML document.
+func Scrape(r io.Reader, pageURL *url.URL) ([]*Slot, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
 		return nil, err
@@ -51,38 +74,21 @@ func Scrape(r io.Reader, pageURL *url.URL) ([]*Candidate, error) {
 
 	baseURL := *pageURL
 
-	var candidates []*Candidate
-	seenURLs := make(map[string]*Candidate)
-
-	addCandidate := func(cand *Candidate) {
-		if cand == nil || cand.ResolvedURL == nil {
-			return
-		}
-		uStr := cand.ResolvedURL.String()
-		if existing, ok := seenURLs[uStr]; ok {
-			if cand.Priority > existing.Priority {
-				seenURLs[uStr] = cand
-			}
-			return
-		}
-		seenURLs[uStr] = cand
-		candidates = append(candidates, cand)
-	}
-
 	// 1. Look for <base href="..."> in head
 	findBaseHref(doc, &baseURL)
 
-	// 2. Traverse DOM and collect image slots and elements
-	traverseDOM(doc, &baseURL, addCandidate)
-
-	// Return ordered unique candidates
-	var result []*Candidate
-	for _, cand := range candidates {
-		if seenURLs[cand.ResolvedURL.String()] == cand {
-			result = append(result, cand)
+	var slots []*Slot
+	addSlot := func(s *Slot) {
+		if s == nil || len(s.Candidates) == 0 {
+			return
 		}
+		slots = append(slots, s)
 	}
-	return result, nil
+
+	// 2. Traverse DOM and collect image slots and elements
+	traverseDOM(doc, &baseURL, addSlot)
+
+	return slots, nil
 }
 
 func findBaseHref(n *html.Node, baseURL *url.URL) {
@@ -118,8 +124,8 @@ type sourceEntry struct {
 	dataSource string
 }
 
-func traverseDOM(n *html.Node, baseURL *url.URL, addCandidate func(*Candidate)) {
-	walk(n, baseURL, nil, nil, addCandidate)
+func traverseDOM(n *html.Node, baseURL *url.URL, addSlot func(*Slot)) {
+	walk(n, baseURL, nil, nil, addSlot)
 }
 
 func walk(
@@ -127,7 +133,7 @@ func walk(
 	baseURL *url.URL,
 	currAnchor *anchorContext,
 	currPicture *pictureContext,
-	addCandidate func(*Candidate),
+	addSlot func(*Slot),
 ) {
 	if n == nil {
 		return
@@ -142,7 +148,7 @@ func walk(
 		// Check inline style attribute on any element
 		for _, attr := range n.Attr {
 			if strings.EqualFold(attr.Key, "style") {
-				extractCSSURLs(attr.Val, baseURL, SourceCSSInline, 20, addCandidate)
+				extractCSSURLs(attr.Val, baseURL, SourceCSSInline, 20, addSlot)
 			}
 		}
 
@@ -173,43 +179,52 @@ func walk(
 
 		case "img":
 			// Process image slot
-			cand := processImageSlot(n, baseURL, currAnchor, currPicture)
-			if cand != nil {
-				addCandidate(cand)
-				if currAnchor != nil && cand.Source == SourceAnchorImage {
-					currAnchor.consumed = true
+			slot := processImageSlot(n, baseURL, currAnchor, currPicture)
+			if slot != nil {
+				addSlot(slot)
+				if currAnchor != nil {
+					for _, c := range slot.Candidates {
+						if c.Source == SourceAnchorImage {
+							currAnchor.consumed = true
+							break
+						}
+					}
 				}
 			}
 
 		case "meta":
-			processMetaTag(n, baseURL, addCandidate)
+			processMetaTag(n, baseURL, addSlot)
 
 		case "script":
 			typeVal := getAttr(n, "type")
 			if strings.EqualFold(typeVal, "application/ld+json") {
-				processJSONLD(n, baseURL, addCandidate)
+				processJSONLD(n, baseURL, addSlot)
 			}
 
 		case "style":
 			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
-				extractCSSURLs(n.FirstChild.Data, baseURL, SourceCSSBlock, 20, addCandidate)
+				extractCSSURLs(n.FirstChild.Data, baseURL, SourceCSSBlock, 20, addSlot)
 			}
 		}
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		walk(c, baseURL, nextAnchor, nextPicture, addCandidate)
+		walk(c, baseURL, nextAnchor, nextPicture, addSlot)
 	}
 
 	// On exiting <a>, if it pointed to a direct raster image and was not consumed by an inner <img>,
-	// emit it as a standalone anchor candidate.
+	// emit it as a standalone anchor slot.
 	if n.Type == html.ElementNode && strings.ToLower(n.Data) == "a" && nextAnchor != nil && !nextAnchor.consumed {
 		if resolved := resolveURL(baseURL, nextAnchor.rawHref); resolved != nil {
-			addCandidate(&Candidate{
-				RawURL:      nextAnchor.rawHref,
-				ResolvedURL: resolved,
-				Source:      SourceStandaloneA,
-				Priority:    40,
+			addSlot(&Slot{
+				Candidates: []*Candidate{
+					{
+						RawURL:      nextAnchor.rawHref,
+						ResolvedURL: resolved,
+						Source:      SourceStandaloneA,
+						Priority:    40,
+					},
+				},
 			})
 		}
 	}
@@ -220,7 +235,7 @@ func processImageSlot(
 	baseURL *url.URL,
 	currAnchor *anchorContext,
 	currPicture *pictureContext,
-) *Candidate {
+) *Slot {
 	var candidates []*Candidate
 
 	// 1. Wrapping <a href> pointing to a raster image (highest priority)
@@ -267,15 +282,23 @@ func processImageSlot(
 				allSourceCands = append(allSourceCands, ParseSrcset(s.dataSource)...)
 			}
 		}
-		if best, ok := SelectBestSrcsetCandidate(allSourceCands); ok {
-			if resolved := resolveURL(baseURL, best.URL); resolved != nil {
+		SortSrcsetCandidatesDesc(allSourceCands)
+		for idx, sc := range allSourceCands {
+			if resolved := resolveURL(baseURL, sc.URL); resolved != nil {
+				p := 80
+				if idx > 0 {
+					p = 78
+				}
 				candidates = append(candidates, &Candidate{
-					RawURL:      best.URL,
+					RawURL:      sc.URL,
 					ResolvedURL: resolved,
 					Source:      SourcePictureSource,
-					Priority:    80,
-					Descriptor:  best.Descriptor,
+					Priority:    p,
+					Descriptor:  sc.Descriptor,
 				})
+				if idx >= 2 {
+					break
+				}
 			}
 		}
 	}
@@ -290,15 +313,23 @@ func processImageSlot(
 	if imgDataSrcset != "" {
 		imgSrcsetCands = append(imgSrcsetCands, ParseSrcset(imgDataSrcset)...)
 	}
-	if best, ok := SelectBestSrcsetCandidate(imgSrcsetCands); ok {
-		if resolved := resolveURL(baseURL, best.URL); resolved != nil {
+	SortSrcsetCandidatesDesc(imgSrcsetCands)
+	for idx, sc := range imgSrcsetCands {
+		if resolved := resolveURL(baseURL, sc.URL); resolved != nil {
+			p := 70
+			if idx > 0 {
+				p = 68
+			}
 			candidates = append(candidates, &Candidate{
-				RawURL:      best.URL,
+				RawURL:      sc.URL,
 				ResolvedURL: resolved,
 				Source:      SourceImgSrcset,
-				Priority:    70,
-				Descriptor:  best.Descriptor,
+				Priority:    p,
+				Descriptor:  sc.Descriptor,
 			})
+			if idx >= 2 {
+				break
+			}
 		}
 	}
 
@@ -335,20 +366,38 @@ func processImageSlot(
 		}
 	}
 
-	// Pick the candidate with the highest priority
 	if len(candidates) == 0 {
 		return nil
 	}
-	best := candidates[0]
-	for _, c := range candidates[1:] {
-		if c.Priority > best.Priority {
-			best = c
+
+	// Sort candidates by priority descending
+	sortCandidatesByPriority(candidates)
+
+	// Deduplicate candidates within the slot, keeping higher priority
+	var unique []*Candidate
+	seen := make(map[string]bool)
+	for _, c := range candidates {
+		uStr := c.ResolvedURL.String()
+		if !seen[uStr] {
+			seen[uStr] = true
+			unique = append(unique, c)
 		}
 	}
-	return best
+
+	return &Slot{Candidates: unique}
 }
 
-func processMetaTag(n *html.Node, baseURL *url.URL, addCandidate func(*Candidate)) {
+func sortCandidatesByPriority(candidates []*Candidate) {
+	for i := 0; i < len(candidates)-1; i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].Priority > candidates[i].Priority {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+}
+
+func processMetaTag(n *html.Node, baseURL *url.URL, addSlot func(*Slot)) {
 	property := getAttr(n, "property")
 	name := getAttr(n, "name")
 	content := getAttr(n, "content")
@@ -363,26 +412,34 @@ func processMetaTag(n *html.Node, baseURL *url.URL, addCandidate func(*Candidate
 
 	if propOrName == "og:image" || propOrName == "og:image:url" {
 		if resolved := resolveURL(baseURL, content); resolved != nil {
-			addCandidate(&Candidate{
-				RawURL:      content,
-				ResolvedURL: resolved,
-				Source:      SourceMetaOG,
-				Priority:    35,
+			addSlot(&Slot{
+				Candidates: []*Candidate{
+					{
+						RawURL:      content,
+						ResolvedURL: resolved,
+						Source:      SourceMetaOG,
+						Priority:    35,
+					},
+				},
 			})
 		}
 	} else if propOrName == "twitter:image" || propOrName == "twitter:image:src" {
 		if resolved := resolveURL(baseURL, content); resolved != nil {
-			addCandidate(&Candidate{
-				RawURL:      content,
-				ResolvedURL: resolved,
-				Source:      SourceMetaTwitter,
-				Priority:    35,
+			addSlot(&Slot{
+				Candidates: []*Candidate{
+					{
+						RawURL:      content,
+						ResolvedURL: resolved,
+						Source:      SourceMetaTwitter,
+						Priority:    35,
+					},
+				},
 			})
 		}
 	}
 }
 
-func processJSONLD(n *html.Node, baseURL *url.URL, addCandidate func(*Candidate)) {
+func processJSONLD(n *html.Node, baseURL *url.URL, addSlot func(*Slot)) {
 	if n.FirstChild == nil || n.FirstChild.Type != html.TextNode {
 		return
 	}
@@ -396,95 +453,95 @@ func processJSONLD(n *html.Node, baseURL *url.URL, addCandidate func(*Candidate)
 		return
 	}
 
-	extractJSONLDValues(data, baseURL, addCandidate)
+	extractJSONLDSlots(data, baseURL, addSlot)
 }
 
-func extractJSONLDValues(v any, baseURL *url.URL, addCandidate func(*Candidate)) {
+func extractJSONLDSlots(v any, baseURL *url.URL, addSlot func(*Slot)) {
 	switch val := v.(type) {
-	case map[string]any:
-		// Check @graph array
-		if graph, ok := val["@graph"]; ok {
-			extractJSONLDValues(graph, baseURL, addCandidate)
-		}
-
-		// Check contentUrl
-		if cURL, ok := val["contentUrl"].(string); ok && cURL != "" {
-			if resolved := resolveURL(baseURL, cURL); resolved != nil {
-				addCandidate(&Candidate{
-					RawURL:      cURL,
-					ResolvedURL: resolved,
-					Source:      SourceJSONLD,
-					Priority:    32,
-				})
-			}
-		}
-
-		// Check thumbnailUrl
-		if tURL, ok := val["thumbnailUrl"].(string); ok && tURL != "" {
-			if resolved := resolveURL(baseURL, tURL); resolved != nil {
-				addCandidate(&Candidate{
-					RawURL:      tURL,
-					ResolvedURL: resolved,
-					Source:      SourceJSONLD,
-					Priority:    28,
-				})
-			}
-		}
-
-		// Check image field
-		if imgField, ok := val["image"]; ok {
-			switch img := imgField.(type) {
-			case string:
-				if resolved := resolveURL(baseURL, img); resolved != nil {
-					addCandidate(&Candidate{
-						RawURL:      img,
-						ResolvedURL: resolved,
-						Source:      SourceJSONLD,
-						Priority:    30,
-					})
-				}
-			default:
-				extractJSONLDValues(img, baseURL, addCandidate)
-			}
-		}
-
-		// If this is an ImageObject with url field
-		if typeStr, ok := val["@type"].(string); ok && strings.EqualFold(typeStr, "ImageObject") {
-			if u, ok := val["url"].(string); ok && u != "" {
-				if resolved := resolveURL(baseURL, u); resolved != nil {
-					addCandidate(&Candidate{
-						RawURL:      u,
-						ResolvedURL: resolved,
-						Source:      SourceJSONLD,
-						Priority:    32,
-					})
-				}
-			}
-		}
-
-		// Recursively check all map elements
-		for _, v := range val {
-			extractJSONLDValues(v, baseURL, addCandidate)
-		}
-
-	case string:
-		if resolved := resolveURL(baseURL, val); resolved != nil {
-			addCandidate(&Candidate{
-				RawURL:      val,
-				ResolvedURL: resolved,
-				Source:      SourceJSONLD,
-				Priority:    30,
-			})
-		}
-
 	case []any:
 		for _, item := range val {
-			extractJSONLDValues(item, baseURL, addCandidate)
+			extractJSONLDSlots(item, baseURL, addSlot)
+		}
+	case map[string]any:
+		// 1. Process @graph if present
+		if graph, ok := val["@graph"]; ok {
+			extractJSONLDSlots(graph, baseURL, addSlot)
+		}
+
+		// 2. Process explicit image fields
+		if img, ok := val["image"]; ok {
+			extractJSONLDImageField(img, baseURL, 30, addSlot)
+		}
+		if contentURL, ok := val["contentUrl"]; ok {
+			extractJSONLDImageField(contentURL, baseURL, 32, addSlot)
+		}
+		if thumbURL, ok := val["thumbnailUrl"]; ok {
+			extractJSONLDImageField(thumbURL, baseURL, 28, addSlot)
+		}
+
+		// 3. If this map is an ImageObject, check its "url" and "contentUrl" fields
+		if isImageObjectType(val["@type"]) {
+			if u, ok := val["url"]; ok {
+				extractJSONLDImageField(u, baseURL, 32, addSlot)
+			}
+		}
+
+		// 4. Recurse into nested objects or arrays only (skip string, number, bool values)
+		for k, child := range val {
+			switch k {
+			case "@graph", "image", "contentUrl", "thumbnailUrl":
+				continue
+			}
+			switch child.(type) {
+			case map[string]any, []any:
+				extractJSONLDSlots(child, baseURL, addSlot)
+			}
 		}
 	}
 }
 
-func extractCSSURLs(cssText string, baseURL *url.URL, source CandidateSource, priority int, addCandidate func(*Candidate)) {
+func isImageObjectType(t any) bool {
+	switch v := t.(type) {
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "ImageObject")
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok && strings.EqualFold(strings.TrimSpace(s), "ImageObject") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func extractJSONLDImageField(v any, baseURL *url.URL, priority int, addSlot func(*Slot)) {
+	switch val := v.(type) {
+	case string:
+		raw := strings.TrimSpace(val)
+		if raw != "" {
+			if resolved := resolveURL(baseURL, raw); resolved != nil {
+				addSlot(&Slot{
+					Candidates: []*Candidate{
+						{
+							RawURL:      raw,
+							ResolvedURL: resolved,
+							Source:      SourceJSONLD,
+							Priority:    priority,
+						},
+					},
+				})
+			}
+		}
+	case []any:
+		for _, item := range val {
+			extractJSONLDImageField(item, baseURL, priority, addSlot)
+		}
+	case map[string]any:
+		extractJSONLDSlots(val, baseURL, addSlot)
+	}
+}
+
+func extractCSSURLs(cssText string, baseURL *url.URL, source CandidateSource, priority int, addSlot func(*Slot)) {
 	matches := cssURLRegex.FindAllStringSubmatch(cssText, -1)
 	for _, match := range matches {
 		if len(match) < 2 {
@@ -493,11 +550,15 @@ func extractCSSURLs(cssText string, baseURL *url.URL, source CandidateSource, pr
 		raw := strings.TrimSpace(match[1])
 		raw = strings.Trim(raw, `"'`)
 		if resolved := resolveURL(baseURL, raw); resolved != nil {
-			addCandidate(&Candidate{
-				RawURL:      raw,
-				ResolvedURL: resolved,
-				Source:      source,
-				Priority:    priority,
+			addSlot(&Slot{
+				Candidates: []*Candidate{
+					{
+						RawURL:      raw,
+						ResolvedURL: resolved,
+						Source:      source,
+						Priority:    priority,
+					},
+				},
 			})
 		}
 	}

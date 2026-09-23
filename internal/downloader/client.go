@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	defaultUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 GleanoMess/0.1"
-	maxRedirects     = 10
-	maxImageBytes    = 500 * 1024 * 1024 // 500 MB safety limit
+	defaultUserAgent     = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 GleanoMess/0.1.1"
+	maxRedirects         = 10
+	DefaultMaxImageBytes = 500 * 1024 * 1024 // 500 MB safety limit
 )
 
 // HTTPClient wraps an http.Client with cookie support, redirect limits, and retry logic.
@@ -105,6 +105,9 @@ func (h *HTTPClient) GetWithRetry(ctx context.Context, targetURL string, isImage
 
 		resp, err := client.Do(req)
 		if err != nil {
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+			}
 			lastErr = err
 			if shouldRetryError(err) && attempt < maxAttempts {
 				h.sleepBackoff(ctx, attempt, nil)
@@ -134,13 +137,18 @@ func (h *HTTPClient) GetWithRetry(ctx context.Context, targetURL string, isImage
 		if shouldRetryStatus(statusCode) && attempt < maxAttempts {
 			retryAfterHeader := resp.Header.Get("Retry-After")
 			resp.Body.Close()
+			lastResp = nil
 			h.sleepBackoff(ctx, attempt, parseRetryAfter(retryAfterHeader))
 			continue
 		}
 
-		// Permanent error or attempts exhausted
+		// Permanent error or attempts exhausted: close response body immediately
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+			lastResp = nil
+		}
 		return &RequestResult{
-			Response:   resp,
+			Response:   nil,
 			Redirects:  redirectURLs,
 			Attempts:   attempt,
 			FinalURL:   targetURL,
@@ -148,7 +156,7 @@ func (h *HTTPClient) GetWithRetry(ctx context.Context, targetURL string, isImage
 		}, fmt.Errorf("HTTP %d: %s", statusCode, http.StatusText(statusCode))
 	}
 
-	if lastResp != nil {
+	if lastResp != nil && lastResp.Body != nil {
 		lastResp.Body.Close()
 	}
 	if lastErr != nil {
@@ -230,6 +238,9 @@ func (h *HTTPClient) FetchPage(ctx context.Context, rawURL string) (*RequestResu
 
 	res, err := h.GetWithRetry(ctx, rawURL, false)
 	if err != nil {
+		if res != nil && res.Response != nil && res.Response.Body != nil {
+			res.Response.Body.Close()
+		}
 		return nil, err
 	}
 	return res, nil

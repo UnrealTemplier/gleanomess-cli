@@ -73,6 +73,32 @@ func (c *ContentTracker) Check(hashHex string) (string, bool) {
 	return existing, ok
 }
 
+// Finalize atomically checks whether hashHex is already registered and, if not, executes
+// the saveFn callback to allocate and store the file into the output directory.
+//
+// If the hash is already registered: saveFn is NOT called, and Finalize returns (existingFilename, true, nil).
+// If saveFn returns an error: hashHex is NOT registered in the tracker, and the error is returned.
+// If saveFn succeeds: hashHex is registered with the returned finalFilename, and Finalize returns (finalFilename, false, nil).
+//
+// This guarantees that concurrent workers processing identical content will serialize only during
+// the brief finalization/rename step, preventing race conditions and ensuring that at most one final file is saved.
+func (c *ContentTracker) Finalize(hashHex string, saveFn func() (string, error)) (string, bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if existing, ok := c.hashes[hashHex]; ok {
+		return existing, true, nil
+	}
+
+	finalFilename, err := saveFn()
+	if err != nil {
+		return "", false, err
+	}
+
+	c.hashes[hashHex] = finalFilename
+	return finalFilename, false, nil
+}
+
 // ComputeFileSHA256 streams a file from disk through sha256 without reading all of it into memory.
 func ComputeFileSHA256(filePath string) (string, error) {
 	f, err := os.Open(filePath)

@@ -116,6 +116,27 @@ func SelectBestSrcsetCandidate(candidates []SrcsetCandidate) (SrcsetCandidate, b
 	return candidates[len(candidates)-1], true
 }
 
+// SortSrcsetCandidatesDesc sorts srcset candidates in descending order of quality:
+// larger width first, then larger density, then original appearance.
+func SortSrcsetCandidatesDesc(candidates []SrcsetCandidate) {
+	for i := 0; i < len(candidates)-1; i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			ci, cj := candidates[i], candidates[j]
+			shouldSwap := false
+			if cj.Width > ci.Width {
+				shouldSwap = true
+			} else if cj.Width == ci.Width {
+				if cj.Density > ci.Density {
+					shouldSwap = true
+				}
+			}
+			if shouldSwap {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+}
+
 func splitSrcsetEntries(s string) []string {
 	var entries []string
 	n := len(s)

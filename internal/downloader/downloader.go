@@ -45,6 +45,7 @@ type ItemResult struct {
 
 // Summary stores the aggregated counts of the download job.
 type Summary struct {
+	TotalSlots      int
 	TotalCandidates int
 	Downloaded      int
 	Skipped         int
@@ -54,11 +55,12 @@ type Summary struct {
 
 // Options configures the Downloader.
 type Options struct {
-	Workers   int
-	LimitSize int
-	Verbose   bool
-	OutputDir string
-	PageURL   string
+	Workers       int
+	LimitSize     int
+	Verbose       bool
+	OutputDir     string
+	PageURL       string
+	MaxImageBytes int64
 }
 
 // Downloader manages concurrent downloading, validating, and saving of images.
@@ -85,25 +87,31 @@ func NewDownloader(client *HTTPClient, opts Options) *Downloader {
 	}
 }
 
-// DownloadAll processes all candidates with a bounded worker pool.
-func (d *Downloader) DownloadAll(ctx context.Context, candidates []*scraper.Candidate) (*Summary, error) {
-	total := len(candidates)
-	summary := &Summary{
-		TotalCandidates: total,
+// DownloadAll processes all image slots with a bounded worker pool.
+func (d *Downloader) DownloadAll(ctx context.Context, slots []*scraper.Slot) (*Summary, error) {
+	totalSlots := len(slots)
+	totalCands := 0
+	for _, s := range slots {
+		totalCands += len(s.Candidates)
 	}
 
-	if total == 0 {
+	summary := &Summary{
+		TotalSlots:      totalSlots,
+		TotalCandidates: totalCands,
+	}
+
+	if totalSlots == 0 {
 		return summary, nil
 	}
 
 	type job struct {
 		index int
-		cand  *scraper.Candidate
+		slot  *scraper.Slot
 	}
 
-	jobs := make(chan job, total)
-	for i, c := range candidates {
-		jobs <- job{index: i + 1, cand: c}
+	jobs := make(chan job, totalSlots)
+	for i, s := range slots {
+		jobs <- job{index: i + 1, slot: s}
 	}
 	close(jobs)
 
@@ -121,7 +129,7 @@ func (d *Downloader) DownloadAll(ctx context.Context, candidates []*scraper.Cand
 				default:
 				}
 
-				res := d.processCandidate(ctx, j.cand, j.index, total)
+				res := d.processSlot(ctx, j.slot, j.index, totalSlots)
 
 				sumMu.Lock()
 				switch res.Status {
@@ -143,6 +151,54 @@ func (d *Downloader) DownloadAll(ctx context.Context, candidates []*scraper.Cand
 
 	wg.Wait()
 	return summary, nil
+}
+
+// processSlot tries ranked candidates in a slot in order until one succeeds or all fail.
+func (d *Downloader) processSlot(ctx context.Context, slot *scraper.Slot, index, total int) *ItemResult {
+	if len(slot.Candidates) == 0 {
+		return &ItemResult{
+			Index:  index,
+			Total:  total,
+			Status: StatusSkipped,
+			Reason: "empty slot",
+		}
+	}
+
+	var lastRes *ItemResult
+	for candIdx, cand := range slot.Candidates {
+		select {
+		case <-ctx.Done():
+			return &ItemResult{
+				Index:     index,
+				Total:     total,
+				Candidate: cand,
+				Status:    StatusError,
+				Error:     ctx.Err(),
+			}
+		default:
+		}
+
+		res := d.processCandidate(ctx, cand, index, total)
+		lastRes = res
+
+		// If successfully downloaded, stop immediately and do not download fallback candidates.
+		if res.Status == StatusDownloaded {
+			return res
+		}
+
+		// If this exact URL or identical content was already downloaded, slot is satisfied.
+		if res.Status == StatusDuplicate {
+			return res
+		}
+
+		// Candidate failed (StatusError or StatusSkipped).
+		// If more candidates exist in this slot, report fallback in verbose mode and try next candidate!
+		if candIdx+1 < len(slot.Candidates) && d.options.Verbose {
+			d.reportFallback(index, total, cand, res, slot.Candidates[candIdx+1])
+		}
+	}
+
+	return lastRes
 }
 
 func (d *Downloader) processCandidate(ctx context.Context, cand *scraper.Candidate, index, total int) *ItemResult {
@@ -194,9 +250,13 @@ func (d *Downloader) processCandidate(ctx context.Context, cand *scraper.Candida
 	hasher := sha256.New()
 	writer := io.MultiWriter(tmpFile, hasher)
 
-	// Enforce safety response limit
-	limitedReader := io.LimitReader(reqResult.Response.Body, maxImageBytes)
-	_, copyErr := io.Copy(writer, limitedReader)
+	// Fix #4: Read up to maxBytes + 1 to detect overflow without silent truncation
+	maxBytes := d.options.MaxImageBytes
+	if maxBytes <= 0 {
+		maxBytes = DefaultMaxImageBytes
+	}
+	limitedReader := io.LimitReader(reqResult.Response.Body, maxBytes+1)
+	n, copyErr := io.Copy(writer, limitedReader)
 	_ = tmpFile.Close()
 
 	if copyErr != nil {
@@ -205,16 +265,23 @@ func (d *Downloader) processCandidate(ctx context.Context, cand *scraper.Candida
 		return res
 	}
 
+	// If n > maxBytes, response exceeded the safety limit! Fail and clean up temp file.
+	if n > maxBytes {
+		res.Status = StatusError
+		res.Error = fmt.Errorf("image exceeds internal download size limit")
+		return res
+	}
+
 	shaHex := hex.EncodeToString(hasher.Sum(nil))
 
-	// 4. Content Deduplication Check
+	// Fast-path content deduplication pre-check
 	if existingFile, isDup := d.contentTracker.Check(shaHex); isDup {
 		res.Status = StatusDuplicate
 		res.Reason = fmt.Sprintf("identical content to %s (sha256: %s)", existingFile, shaHex[:8])
 		return res
 	}
 
-	// 5. Inspect image format and dimensions
+	// 4. Inspect image format and dimensions (without holding any lock)
 	f, err := os.Open(tmpPath)
 	if err != nil {
 		res.Status = StatusError
@@ -237,7 +304,7 @@ func (d *Downloader) processCandidate(ctx context.Context, cand *scraper.Candida
 	res.Width = info.Width
 	res.Height = info.Height
 
-	// 6. Size Filter Check
+	// 5. Size Filter Check: max(width, height) >= limit
 	if d.options.LimitSize > 0 {
 		maxDim := info.Width
 		if info.Height > maxDim {
@@ -250,28 +317,53 @@ func (d *Downloader) processCandidate(ctx context.Context, cand *scraper.Candida
 		}
 	}
 
-	// 7. Resolve Final Filename and Allocate Unique Name
+	// 6. Fix #1: Atomic Finalize with ContentTracker
 	contentDisposition := reqResult.Response.Header.Get("Content-Disposition")
 	baseFilename := naming.ResolveFilename(contentDisposition, targetURL, info.Extension, shaHex)
-	finalFilename := d.allocator.Allocate(baseFilename)
-	finalPath := filepath.Join(d.options.OutputDir, finalFilename)
 
-	// 8. Atomic Rename to Final Destination
-	if err := os.Rename(tmpPath, finalPath); err != nil {
+	finalFilename, isDup, err := d.contentTracker.Finalize(shaHex, func() (string, error) {
+		name := d.allocator.Allocate(baseFilename)
+		finalPath := filepath.Join(d.options.OutputDir, name)
+		if err := os.Rename(tmpPath, finalPath); err != nil {
+			return "", fmt.Errorf("finalizing file: %w", err)
+		}
+		// Successfully renamed; clear tmpPath so deferred os.Remove won't delete final file
+		tmpPath = ""
+		return name, nil
+	})
+
+	if err != nil {
 		res.Status = StatusError
-		res.Error = fmt.Errorf("finalizing file: %w", err)
+		res.Error = err
 		return res
 	}
 
-	// Mark tempPath as empty so deferred os.Remove is a no-op
-	tmpPath = ""
-
-	// 9. Register in Content Deduplication
-	d.contentTracker.Register(shaHex, finalFilename)
+	if isDup {
+		res.Status = StatusDuplicate
+		res.Reason = fmt.Sprintf("identical content to %s (sha256: %s)", finalFilename, shaHex[:8])
+		return res
+	}
 
 	res.Status = StatusDownloaded
 	res.Filename = finalFilename
 	return res
+}
+
+func (d *Downloader) reportFallback(index, total int, failed *scraper.Candidate, res *ItemResult, next *scraper.Candidate) {
+	d.outMu.Lock()
+	defer d.outMu.Unlock()
+
+	var reason string
+	if res.Error != nil {
+		reason = res.Error.Error()
+	} else if res.Reason != "" {
+		reason = res.Reason
+	} else {
+		reason = string(res.Status)
+	}
+
+	fmt.Printf("[%d/%d] FALLBACK: %s failed (%s), trying %s [%s]\n",
+		index, total, failed.ResolvedURL.String(), reason, next.ResolvedURL.String(), next.Source)
 }
 
 func (d *Downloader) reportResult(res *ItemResult) {
