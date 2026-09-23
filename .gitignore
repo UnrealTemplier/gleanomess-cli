@@ -1,0 +1,13 @@
+# Binaries
+/gleanomess
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts & temp files
+*.test
+*.out
+*.tmp
+.gleanomess-*.tmp
