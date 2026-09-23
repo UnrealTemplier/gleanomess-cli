@@ -10,9 +10,9 @@ This document defines core principles, architectural invariants, and development
 
 ## 1. Project Purpose & Version
 
-- **Project:** GleanoMess is a focused Go CLI utility for extracting and downloading raster images from a single static web page.
-- **Current Version:** `0.1.1`
-- **Core Operation:** Fetches a single webpage URL, parses HTML/DOM to discover raster images, ranks candidate URLs to prefer original/high-resolution images over thumbnails with fallback chains, downloads assets concurrently via a bounded worker pool without modifying their bytes, and saves them into a dedicated site directory.
+- **Project:** GleanoMess is a focused Go CLI utility for extracting and downloading raster images from static web pages.
+- **Current Version:** `0.2.0`
+- **Core Operation:** Fetches a webpage URL, parses HTML/DOM to discover raster images, ranks candidate URLs to prefer original/high-resolution images over thumbnails with fallback chains, supports controlled same-origin pagination and one-hop landing resolution, downloads assets concurrently via a bounded worker pool without modifying their bytes, and saves them into a dedicated site directory.
 
 ---
 
@@ -49,12 +49,13 @@ CI builds standalone binary artifacts (`gleanomess-linux-amd64`, `gleanomess-win
 
 The codebase is organized into small, single-purpose packages under `cmd/` and `internal/`:
 
-- **`cmd/gleanomess/`**: CLI argument parsing, flags (`--limit-size`, `--output-dir`, `--workers`, `--verbose`, `--version`), output directory calculation (beside executable or custom base), signal handling (`SIGINT`, `SIGTERM`), and summary output.
-- **`internal/scraper/`**: DOM traversal using `golang.org/x/net/html`. Extracts image slots (`<img>`, `<picture>`, enclosing `<a>`, `srcset`, `data-*`), OpenGraph/Twitter meta tags, JSON-LD schemas, and inline/block CSS. Ranks candidates and resolves URLs relative to `<base href>` / page URL.
+- **`cmd/gleanomess/`**: CLI argument parsing, flags (`--limit-size`, `--output-dir`, `--workers`, `--all-pages`, `--max-pages`, `--resolve-landings`, `--verbose`, `--version`), output directory calculation (beside executable or custom base), sequential pagination loop, signal handling (`SIGINT`, `SIGTERM`), and summary output.
+- **`internal/scraper/`**: DOM traversal using `golang.org/x/net/html`. Extracts image slots (`<img>`, `<picture>`, enclosing `<a>`, `srcset`, `data-*`), OpenGraph/Twitter meta tags, JSON-LD schemas, and inline/block CSS. Ranks candidates and resolves URLs relative to `<base href>` / page URL. Detects conservative same-origin next-page links (`FindNextPage`).
+- **`internal/landing/`**: One-hop same-origin landing page resolution (`Resolver`). Fetches viewer/detail pages for image slots lacking direct high-res candidates, extracts candidates, correlates them conservatively via identifier tokens, and caches page responses and candidate indices to prevent duplicate requests.
 - **`internal/downloader/`**: Bounded concurrency worker pool, resilient HTTP client (cookie jar, redirects, keep-alive), retry with exponential backoff on transient errors (408, 429, 500, 502, 503, 504), temp file streaming, overflow detection, validation pipeline, and progress reporting.
 - **`internal/imageinfo/`**: Format sniffing (magic bytes and headers) and dimension inspection using `DecodeConfig` (JPEG, PNG, GIF, WebP, BMP, TIFF, AVIF). Rejects non-raster formats (SVG, ICO, HTML).
 - **`internal/naming/`**: Resolves final filenames (`Content-Disposition` -> URL path basename -> generated fallback), ensures correct format extension, sanitizes characters for Linux/Windows safety, guards Windows reserved names (`CON`, `PRN`, etc.), and allocates collision-free filenames (`_2`, `_3`).
-- **`internal/dedup/`**: Thread-safe URL deduplication (`URLTracker`) and atomic content deduplication (`ContentTracker`) via streaming SHA-256 hashes and serialized finalization.
+- **`internal/dedup/`**: Thread-safe URL deduplication (`URLTracker`) and atomic content deduplication (`ContentTracker`) via streaming SHA-256 hashes and serialized finalization across single or multiple pages.
 
 ---
 
@@ -76,26 +77,38 @@ The codebase is organized into small, single-purpose packages under `cmd/` and `
 14. **A failed image must not abort the whole page job.** Transient or 404 image errors increment the error count but allow other image slots to complete.
 15. **Default output is beside the executable.** Output directory defaults to `filepath.Dir(exePath)/<sanitized_host>/<page_folder>/` (evaluating symlinks), partitioning downloads deterministically by initial target URL (`<path-slug>-<short-hash>`).
 16. **Do not silently expand the project into a browser/crawler framework.** Respect explicit scope boundaries.
+17. **Pagination is opt-in.** Multi-page traversal occurs only when explicitly enabled via `--all-pages` or `--max-pages > 1`.
+18. **Pagination follows only validated next-page relationships.** Discovers next-page links using strict priority: `<link rel="next">`, `<a rel="next">`, `aria-label`/`title="Next"`, and context-bounded text heuristics. Never use speculative query mutations (`page=N -> page=N+1`) or bare chevrons as crawl rules.
+19. **Pagination is same-origin and loop-protected.** Only traverse same-origin pages and maintain a visited-set to prevent endless cycles.
+20. **Landing resolution is opt-in.** One-hop landing resolution occurs only when `--resolve-landings` is passed.
+21. **Landing resolution is exactly one hop.** Detail pages must never be treated as recursive crawl roots or lead to secondary hops.
+22. **Landing links come only from image slots.** Only `<a href>` enclosing an `<img>` in an identified image slot may trigger landing resolution; never crawl arbitrary page links.
+23. **Landing pages must not be treated as arbitrary crawl roots.** Landing pages are inspected strictly to find the candidate corresponding to the originating slot.
+24. **Landing candidates must be correlated conservatively with the originating slot.** Candidates from landing pages are matched using conservative identifier tokens (numeric IDs, slugs).
+25. **Ambiguous landing matches must be rejected rather than guessing.** If multiple candidates match ambiguously without a clear winner, reject rather than guessing.
+26. **Existing image validation/dedup/finalization pipeline must remain authoritative.** All candidates from pagination or landing resolution must pass through the identical validation, size filtering, format inspection, SHA-256 deduplication, and atomic finalization pipeline.
 
 ---
 
 ## 6. Scope Boundaries
 
-### In Scope for v0.1.x:
+### In Scope for v0.2.x:
 - Linux-first (Fedora x86_64 primary, portable to Windows 11 amd64 and macOS).
 - Pure Go / CGO-free build; standard library + `golang.org/x/net/html` + `golang.org/x/image`.
-- Single-page static HTML parsing (no regex for HTML structure).
+- Single-page static HTML parsing and controlled multi-page pagination traversal (`--all-pages`, `--max-pages`).
+- One-hop same-origin landing page resolution (`--resolve-landings`) with conservative token correlation.
 - Candidate ranking prioritizing original/higher-quality images with ordered fallback chains per image slot.
 - Parallel downloads using a bounded worker pool (default 4 workers, `--workers N`).
 - Size filter `--limit-size N` enforcing `max(width, height) >= N`.
 - Strict atomic deduplication (thread-safe URL normalization + streaming SHA-256 content deduplication atomic with finalization).
 - Clean filesystem handling: download to temp files, sanitize names, atomic rename, overflow/truncation safety limits.
+- Deterministic output directory partitioning by initial target URL (`<hostname>/<path-slug>-<short-hash>/`).
 - Comprehensive automated unit and integration tests.
 
-### Strictly Out of Scope for v0.1.x:
+### Strictly Out of Scope for v0.2.x:
+- Recursive crawling or arbitrary link crawling.
 - Headless browsers (Chromium, Playwright, Selenium) or JS runtimes (Node.js, V8).
 - Client-side JavaScript execution.
-- Recursive crawling or multi-page traversals.
 - Sitemap crawling.
 - Browser automation, login, or authentication sessions.
 - CAPTCHA solving, proxy rotation, anti-bot bypassing.
@@ -104,7 +117,7 @@ The codebase is organized into small, single-purpose packages under `cmd/` and `
 - Range probing or downloading external `<link rel="stylesheet">` CSS files.
 - `--dry-run` flag.
 
-If an asset is only generated dynamically via JavaScript execution, it is an accepted limitation of v0.1.x.
+If an asset is only generated dynamically via JavaScript execution, it is an accepted limitation of v0.2.x.
 
 ---
 

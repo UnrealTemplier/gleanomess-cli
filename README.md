@@ -10,14 +10,16 @@
 
 ## Status
 
-- **Version:** `0.1.1`
-- **Maturity:** Functional utility (v0.1.x). Focused on single-page static HTML scraping; not an enterprise crawler framework or browser automation tool.
+- **Version:** `0.2.0`
+- **Maturity:** Functional utility (v0.2.x). Focused on static HTML scraping with controlled pagination and one-hop landing resolution; not an arbitrary web crawler or browser automation tool.
 
 ---
 
 ## Key Features
 
 - **Linux-First & Pure Go:** Built for modern Linux (Fedora x86_64 primary) and fully portable to Windows 11 amd64 and macOS; pure Go CGO-free build with zero external runtime dependencies (no Python, Node.js, or browser engines).
+- **Controlled Pagination Traversal (`--all-pages`, `--max-pages`):** Sequentially traverses same-origin multi-page galleries following validated next-page signals (`<link rel="next">`, `<a rel="next">`, `aria-label`/`title="Next"`, and context-bounded text heuristics) with visited-set loop protection and deterministic output partitioning.
+- **One-Hop Same-Origin Landing Resolution (`--resolve-landings`):** Resolves same-origin detail/viewer pages linked directly by enclosing `<a>` tags for image slots lacking direct high-resolution candidates. Correlates original assets via conservative identifier tokens without recursive crawling.
 - **Candidate Ranking & Fallback Chains:** Discovers multiple image candidates per logical image slot and ranks them by priority. Ranking defines the attempt order: if a higher-priority candidate fails (HTTP error, corrupted payload, non-raster format, dimension error, or size filter rejection), lower-priority candidates are attempted as fallbacks.
 - **No Unnecessary Downloads:** As soon as any candidate in an image slot succeeds and meets size criteria, fallback ceases immediately for that slot.
 - **Semantic HTML & Metadata Extraction:** Uses standard `golang.org/x/net/html` for DOM traversal. Extracts images from `<img>`, `<picture>`, enclosing and standalone `<a>` links, lazy-loading `data-*` attributes, OpenGraph and Twitter Cards metadata, validated JSON-LD schemas, and CSS backgrounds.
@@ -25,7 +27,7 @@
 - **Size Filtering (`--limit-size`):** Enforces `max(width, height) >= N`. If the largest dimension is at least `N` pixels, the image is accepted; otherwise, it is skipped or falls back to remaining candidates.
 - **Atomic Concurrency-Safe Deduplication:**
   - **URL Deduplication:** Normalizes URLs so each unique remote URL is fetched at most once across concurrent workers.
-  - **Content Deduplication:** Computes streaming SHA-256 hashes during temp file writing. Finalization uses an atomic check-and-save critical section to prevent race conditions when concurrent workers download identical images.
+  - **Content Deduplication:** Computes streaming SHA-256 hashes during temp file writing. Finalization uses an atomic check-and-save critical section to prevent race conditions when concurrent workers download identical images across single or multiple pages.
 - **Safe Filesystem Handling & Overflow Protection:**
   - Downloads stream to temporary `.gleanomess-*.tmp` files in the output directory.
   - Enforces an internal download safety limit (~500 MiB) with overflow detection (`maxImageBytes + 1`); payloads exceeding the limit are rejected and temp files deleted, preventing truncated files from being finalized.
@@ -130,6 +132,42 @@ Displays the installed version and exits:
 gleanomess --version
 ```
 
+### Multi-Page Traversal (`--all-pages`, `--max-pages`)
+
+By default, GleanoMess processes only the single URL provided.
+
+To automatically follow pagination links sequentially until the end of the gallery:
+
+```bash
+gleanomess https://example.com/gallery --all-pages
+```
+
+To limit the maximum number of HTML pages traversed:
+
+```bash
+gleanomess https://example.com/gallery --all-pages --max-pages 5
+```
+
+- When `--all-pages` is specified (or `--max-pages > 1`), GleanoMess discovers next-page links using strict priority: `<link rel="next">`, `<a rel="next">`, `aria-label`/`title="Next"`, and context-bounded text heuristics.
+- Traversal is strictly **same-origin only** and features visited-set loop protection to prevent endless cycles.
+- All pages belonging to the same run are saved into the same output directory, with atomic content deduplication across all pages.
+
+### One-Hop Landing Resolution (`--resolve-landings`)
+
+On some gallery websites, thumbnails are wrapped in links to dedicated viewer/detail HTML pages rather than pointing directly to image files (e.g. `<a href="/photo/123"><img src="/thumb/123.jpg"></a>`).
+
+Passing `--resolve-landings` allows GleanoMess to make **strictly one additional HTTP hop** to fetch the linked same-origin page and extract the corresponding high-resolution original asset:
+
+```bash
+gleanomess https://example.com/gallery --resolve-landings --limit-size 256
+```
+
+- **Candidate Correlation:** Discovered original assets on the landing page are correlated with the originating image slot using conservative identifier token matching (such as numeric IDs or slug tokens). If no confident correlation can be made, or if matching is ambiguous, the candidate is discarded and the normal fallback chain continues.
+- **Strictly One Hop:** GleanoMess never crawls recursively from a landing page.
+- **Same-Origin Only:** Cross-origin landing links are ignored.
+- **Request Deduplication:** If multiple image slots link to the same landing page, the page is requested at most once via a thread-safe cache.
+- **Direct Raster Fallback:** If the landing URL itself responds with a direct raster image content type (e.g. extensionless media URLs), it is promoted directly.
+
 ### CLI Options
 
 | Flag | Shorthand | Type | Default | Description |
@@ -137,6 +175,9 @@ gleanomess --version
 | `--limit-size` | | `int` | `0` | Filter images with `max(width, height) >= N` |
 | `--output-dir` | | `string` | `""` | Override base output directory |
 | `--workers` | | `int` | `4` | Number of concurrent download workers |
+| `--all-pages` | | `bool` | `false` | Enable sequential multi-page traversal following pagination |
+| `--max-pages` | | `int` | `0` | Maximum number of HTML pages to process (0 = unlimited with `--all-pages`) |
+| `--resolve-landings` | | `bool` | `false` | Resolve 1-hop landing pages for image slots missing direct raster candidates |
 | `--verbose` | `-v` | `bool` | `false` | Enable detailed verbose output |
 | `--version` | | `bool` | `false` | Show program version and exit |
 | `--help` | `-h` | `bool` | `false` | Show usage and flags and exit |
@@ -169,7 +210,7 @@ All relative URLs are resolved against the page URL (or `<base href>` if specifi
 GleanoMess does not guess or synthesize URLs; it selects the **best available candidate exposed by the webpage**.
 
 For each logical image slot, discovered URLs are arranged into a prioritized fallback chain:
-1. GleanoMess first attempts to download the highest-ranked candidate (e.g. direct link or original attribute).
+1. GleanoMess first attempts to download the highest-ranked candidate (e.g. direct link or original attribute, or resolved landing original).
 2. If that candidate fails (HTTP 4xx/5xx status, network error, non-raster payload, dimension decoding failure, or `--limit-size` rejection), GleanoMess automatically falls back to the next candidate in the slot.
 3. As soon as a candidate successfully downloads and passes validation, slot processing finishes immediately. Lower-priority candidates in that slot are not downloaded.
 
@@ -193,9 +234,14 @@ For each logical image slot, discovered URLs are arranged into a prioritized fal
 
 ## Scope & Limitations
 
-- **No Original Reconstruction:** GleanoMess cannot download an "original" image that the webpage does not expose in its HTML, attributes, CSS, or metadata.
-- **Static HTML Only (v0.1.x):** GleanoMess inspects server-rendered HTML. Content generated exclusively via client-side JavaScript execution (SPAs) is outside the scope of v0.1.x unless URLs are present in static markup or JSON-LD.
-- **Single Page Only:** GleanoMess downloads assets from the single URL provided. It does not perform multi-page or recursive web crawling.
+> [!IMPORTANT]
+> **GleanoMess uses conservative heuristics.** It cannot guarantee discovery of an original asset if the page does not expose a reliable relationship to it. Multi-level gallery structures are supported only when the relationship between thumbnails and original assets can be inferred generically.
+
+- **No Site-Specific Code:** GleanoMess does not contain hardcoded domain rules or bespoke site extractors. All features operate generically across standard HTML markup.
+- **No Original Reconstruction:** GleanoMess cannot download an "original" image that the webpage does not expose in its HTML, attributes, CSS, metadata, or linked same-origin landing pages.
+- **Static HTML Only (v0.2.x):** GleanoMess inspects server-rendered HTML. Content generated exclusively via client-side JavaScript execution (SPAs) is outside the scope of v0.2.x unless URLs are present in static markup or JSON-LD.
+- **Controlled Traversal Only:** By default, GleanoMess processes only the initial page URL. When `--all-pages` is enabled, pagination is strictly same-origin and linear; GleanoMess is not an arbitrary recursive web crawler.
+- **Strictly One Hop for Landings:** Detail page resolution (`--resolve-landings`) is strictly limited to 1 same-origin hop per image slot.
 - **No External CSS Crawling:** External stylesheets referenced via `<link rel="stylesheet">` are not fetched.
 - **Data URIs:** Inline base64 `data:` URIs are ignored.
 - **No Browser Automation:** No headless browsers, CAPTCHA bypasses, proxy rotators, or authentication session management.

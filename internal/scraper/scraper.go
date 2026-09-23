@@ -29,6 +29,7 @@ const (
 	SourceJSONLD        CandidateSource = "json-ld"
 	SourceCSSInline     CandidateSource = "css[style]"
 	SourceCSSBlock      CandidateSource = "css[style-tag]"
+	SourceLandingImage  CandidateSource = "landing"
 )
 
 // Candidate represents a discovered image asset candidate.
@@ -44,6 +45,7 @@ type Candidate struct {
 // Candidates are ordered by priority (highest priority first) to form a fallback chain.
 type Slot struct {
 	Candidates []*Candidate
+	LandingURL *url.URL
 }
 
 // Best returns the highest-priority candidate in the slot, or nil if empty.
@@ -65,16 +67,9 @@ func FlattenCandidates(slots []*Slot) []*Candidate {
 
 var cssURLRegex = regexp.MustCompile(`(?i)url\(\s*(?:['"]?)([^'")]+)(?:['"]?)\s*\)`)
 
-// Scrape extracts ranked image slots from an HTML document.
-func Scrape(r io.Reader, pageURL *url.URL) ([]*Slot, error) {
-	doc, err := html.Parse(r)
-	if err != nil {
-		return nil, err
-	}
-
+// ScrapeDoc extracts ranked image slots from an already parsed HTML document node.
+func ScrapeDoc(doc *html.Node, pageURL *url.URL) []*Slot {
 	baseURL := *pageURL
-
-	// 1. Look for <base href="..."> in head
 	findBaseHref(doc, &baseURL)
 
 	var slots []*Slot
@@ -85,10 +80,17 @@ func Scrape(r io.Reader, pageURL *url.URL) ([]*Slot, error) {
 		slots = append(slots, s)
 	}
 
-	// 2. Traverse DOM and collect image slots and elements
 	traverseDOM(doc, &baseURL, addSlot)
+	return slots
+}
 
-	return slots, nil
+// Scrape extracts ranked image slots from an HTML document.
+func Scrape(r io.Reader, pageURL *url.URL) ([]*Slot, error) {
+	doc, err := html.Parse(r)
+	if err != nil {
+		return nil, err
+	}
+	return ScrapeDoc(doc, pageURL), nil
 }
 
 func findBaseHref(n *html.Node, baseURL *url.URL) {
@@ -155,7 +157,7 @@ func walk(
 		switch tag {
 		case "a":
 			href := getAttr(n, "href")
-			if href != "" && isDirectRasterURL(href) {
+			if href != "" {
 				nextAnchor = &anchorContext{
 					rawHref:  href,
 					consumed: false,
@@ -215,17 +217,19 @@ func walk(
 	// On exiting <a>, if it pointed to a direct raster image and was not consumed by an inner <img>,
 	// emit it as a standalone anchor slot.
 	if n.Type == html.ElementNode && strings.ToLower(n.Data) == "a" && nextAnchor != nil && !nextAnchor.consumed {
-		if resolved := resolveURL(baseURL, nextAnchor.rawHref); resolved != nil {
-			addSlot(&Slot{
-				Candidates: []*Candidate{
-					{
-						RawURL:      nextAnchor.rawHref,
-						ResolvedURL: resolved,
-						Source:      SourceStandaloneA,
-						Priority:    40,
+		if isDirectRasterURL(nextAnchor.rawHref) {
+			if resolved := resolveURL(baseURL, nextAnchor.rawHref); resolved != nil {
+				addSlot(&Slot{
+					Candidates: []*Candidate{
+						{
+							RawURL:      nextAnchor.rawHref,
+							ResolvedURL: resolved,
+							Source:      SourceStandaloneA,
+							Priority:    40,
+						},
 					},
-				},
-			})
+				})
+			}
 		}
 	}
 }
@@ -237,16 +241,23 @@ func processImageSlot(
 	currPicture *pictureContext,
 ) *Slot {
 	var candidates []*Candidate
+	var landingURL *url.URL
 
-	// 1. Wrapping <a href> pointing to a raster image (highest priority)
+	// 1. Wrapping <a href> pointing to a raster image (highest priority) or landing page
 	if currAnchor != nil && currAnchor.rawHref != "" {
 		if resolved := resolveURL(baseURL, currAnchor.rawHref); resolved != nil {
-			candidates = append(candidates, &Candidate{
-				RawURL:      currAnchor.rawHref,
-				ResolvedURL: resolved,
-				Source:      SourceAnchorImage,
-				Priority:    100,
-			})
+			if isDirectRasterURL(currAnchor.rawHref) {
+				candidates = append(candidates, &Candidate{
+					RawURL:      currAnchor.rawHref,
+					ResolvedURL: resolved,
+					Source:      SourceAnchorImage,
+					Priority:    100,
+				})
+				currAnchor.consumed = true
+			} else if IsSameOrigin(baseURL, resolved) {
+				landingURL = resolved
+				currAnchor.consumed = true
+			}
 		}
 	}
 
@@ -384,7 +395,18 @@ func processImageSlot(
 		}
 	}
 
-	return &Slot{Candidates: unique}
+	return &Slot{
+		Candidates: unique,
+		LandingURL: landingURL,
+	}
+}
+
+// IsSameOrigin checks whether two URLs share the same scheme and hostname.
+func IsSameOrigin(u1, u2 *url.URL) bool {
+	if u1 == nil || u2 == nil {
+		return false
+	}
+	return strings.EqualFold(u1.Scheme, u2.Scheme) && strings.EqualFold(u1.Hostname(), u2.Hostname())
 }
 
 func sortCandidatesByPriority(candidates []*Candidate) {

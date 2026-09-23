@@ -15,10 +15,12 @@ import (
 	"syscall"
 
 	"github.com/UnrealTemplier/gleanomess-cli/internal/downloader"
+	"github.com/UnrealTemplier/gleanomess-cli/internal/landing"
 	"github.com/UnrealTemplier/gleanomess-cli/internal/scraper"
+	"golang.org/x/net/html"
 )
 
-const version = "0.1.1"
+const version = "0.2.0"
 
 var (
 	invalidHostCharsRegex = regexp.MustCompile(`[^a-zA-Z0-9.\-_]`)
@@ -35,11 +37,14 @@ func run(args []string) int {
 	fs := flag.NewFlagSet("gleanomess", flag.ContinueOnError)
 
 	var (
-		limitSize int
-		outputDir string
-		workers   int
-		verbose   bool
-		showVer   bool
+		limitSize       int
+		outputDir       string
+		workers         int
+		verbose         bool
+		showVer         bool
+		resolveLandings bool
+		allPages        bool
+		maxPages        int
 	)
 
 	fs.IntVar(&limitSize, "limit-size", 0, "filter images with max(width, height) >= N")
@@ -48,6 +53,9 @@ func run(args []string) int {
 	fs.BoolVar(&verbose, "verbose", false, "enable detailed verbose output")
 	fs.BoolVar(&verbose, "v", false, "enable detailed verbose output (shorthand)")
 	fs.BoolVar(&showVer, "version", false, "show program version and exit")
+	fs.BoolVar(&resolveLandings, "resolve-landings", false, "resolve 1-hop landing pages for image slots missing direct raster candidates")
+	fs.BoolVar(&allPages, "all-pages", false, "enable sequential multi-page traversal following pagination")
+	fs.IntVar(&maxPages, "max-pages", 0, "maximum number of HTML pages to process (0 = unlimited with --all-pages)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "GleanoMess %s - Extract and download raster images from a webpage\n\n", version)
@@ -102,6 +110,10 @@ func run(args []string) int {
 		fmt.Fprintf(os.Stderr, "Error: --workers must be greater than 0, got %d\n", workers)
 		return 2
 	}
+	if maxPages < 0 {
+		fmt.Fprintf(os.Stderr, "Error: --max-pages must be non-negative, got %d\n", maxPages)
+		return 2
+	}
 
 	targetDir, err := resolveTargetDir(outputDir, parsedURL)
 	if err != nil {
@@ -125,6 +137,16 @@ func run(args []string) int {
 		if limitSize > 0 {
 			fmt.Printf("Limit Size: max(width, height) >= %d\n", limitSize)
 		}
+		if resolveLandings {
+			fmt.Println("Resolve Landings: enabled (1-hop same-origin)")
+		}
+		if allPages || maxPages > 1 {
+			if maxPages > 0 {
+				fmt.Printf("Pagination: enabled (max %d pages)\n", maxPages)
+			} else {
+				fmt.Println("Pagination: enabled (all pages)")
+			}
+		}
 	}
 	fmt.Println()
 
@@ -135,50 +157,7 @@ func run(args []string) int {
 		return 1
 	}
 
-	// Fetch HTML page
-	pageResult, err := client.FetchPage(ctx, rawPageURL)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error fetching page %s: %v\n", rawPageURL, err)
-		return 1
-	}
-	defer pageResult.Response.Body.Close()
-
-	// Update base URL if redirected
-	effectiveBaseURL := parsedURL
-	if pageResult.FinalURL != "" {
-		if u, err := url.Parse(pageResult.FinalURL); err == nil {
-			effectiveBaseURL = u
-		}
-	}
-
-	// Scrape HTML for image candidates and slots
-	slots, err := scraper.Scrape(pageResult.Response.Body, effectiveBaseURL)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing HTML from %s: %v\n", rawPageURL, err)
-		return 1
-	}
-
-	totalCandidates := 0
-	for _, s := range slots {
-		totalCandidates += len(s.Candidates)
-	}
-
-	if verbose {
-		fmt.Printf("Found %d image slots (%d candidates).\n\n", len(slots), totalCandidates)
-	} else {
-		fmt.Printf("Found %d image slots.\n\n", len(slots))
-	}
-
-	if len(slots) == 0 {
-		fmt.Println("Done.")
-		fmt.Println("Downloaded: 0")
-		fmt.Println("Skipped:    0")
-		fmt.Println("Duplicates: 0")
-		fmt.Println("Errors:     0")
-		return 0
-	}
-
-	// Run Downloader
+	// Downloader manages bounded concurrency image downloading and deduplication across pages
 	dl := downloader.NewDownloader(client, downloader.Options{
 		Workers:   workers,
 		LimitSize: limitSize,
@@ -187,18 +166,140 @@ func run(args []string) int {
 		PageURL:   rawPageURL,
 	})
 
-	summary, err := dl.DownloadAll(ctx, slots)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error during download process: %v\n", err)
-		return 1
+	landingResolver := landing.NewResolver(client, verbose)
+
+	paginationEnabled := allPages || maxPages > 1
+	visitedPages := make(map[string]bool)
+	currentPageURL := rawPageURL
+	pageCount := 0
+
+	var totalSummary downloader.Summary
+
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr, "\nOperation canceled.")
+			return 1
+		default:
+		}
+
+		parsedCurr, err := url.Parse(currentPageURL)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing page URL %s: %v\n", currentPageURL, err)
+			totalSummary.Errors++
+			break
+		}
+
+		cleanCurr := *parsedCurr
+		cleanCurr.Fragment = ""
+		cleanCurr.Scheme = strings.ToLower(cleanCurr.Scheme)
+		cleanCurr.Host = strings.ToLower(cleanCurr.Host)
+		canonicalURLStr := cleanCurr.String()
+
+		if visitedPages[canonicalURLStr] {
+			if verbose {
+				fmt.Printf("PAGE already visited: %s (loop prevented)\n", currentPageURL)
+			}
+			break
+		}
+		visitedPages[canonicalURLStr] = true
+		pageCount++
+
+		if verbose {
+			fmt.Printf("PAGE %d: %s\n", pageCount, currentPageURL)
+		}
+
+		// Fetch HTML page
+		pageResult, err := client.FetchPage(ctx, currentPageURL)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error fetching page %s: %v\n", currentPageURL, err)
+			totalSummary.Errors++
+			break
+		}
+
+		doc, err := html.Parse(pageResult.Response.Body)
+		pageResult.Response.Body.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing HTML from %s: %v\n", currentPageURL, err)
+			totalSummary.Errors++
+			break
+		}
+
+		effectiveBaseURL := parsedCurr
+		if pageResult.FinalURL != "" {
+			if u, err := url.Parse(pageResult.FinalURL); err == nil {
+				effectiveBaseURL = u
+			}
+		}
+
+		// Scrape HTML for image candidates and slots
+		slots := scraper.ScrapeDoc(doc, effectiveBaseURL)
+
+		if verbose {
+			totalCandidates := 0
+			for _, s := range slots {
+				totalCandidates += len(s.Candidates)
+			}
+			fmt.Printf("Found %d image slots (%d candidates) on page %d.\n", len(slots), totalCandidates, pageCount)
+		} else if pageCount == 1 && !paginationEnabled {
+			fmt.Printf("Found %d image slots.\n\n", len(slots))
+		}
+
+		// One-hop landing page resolution
+		if resolveLandings && len(slots) > 0 {
+			landingResolver.ResolveSlots(ctx, slots, effectiveBaseURL)
+		}
+
+		// Download images for this page
+		if len(slots) > 0 {
+			pageSummary, err := dl.DownloadAll(ctx, slots)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error during download process: %v\n", err)
+				return 1
+			}
+			totalSummary.Downloaded += pageSummary.Downloaded
+			totalSummary.Skipped += pageSummary.Skipped
+			totalSummary.Duplicates += pageSummary.Duplicates
+			totalSummary.Errors += pageSummary.Errors
+			totalSummary.TotalSlots += pageSummary.TotalSlots
+			totalSummary.TotalCandidates += pageSummary.TotalCandidates
+		}
+
+		if !paginationEnabled {
+			break
+		}
+		if maxPages > 0 && pageCount >= maxPages {
+			if verbose {
+				fmt.Printf("Reached maximum page limit (%d), stopping traversal.\n", maxPages)
+			}
+			break
+		}
+
+		nextURL := scraper.FindNextPage(doc, effectiveBaseURL)
+		if nextURL == nil {
+			if verbose {
+				fmt.Println("No next page link found, pagination traversal complete.")
+			}
+			break
+		}
+
+		currentPageURL = nextURL.String()
+		if verbose {
+			fmt.Println()
+		}
 	}
 
 	fmt.Println()
 	fmt.Println("Done.")
-	fmt.Printf("Downloaded: %d\n", summary.Downloaded)
-	fmt.Printf("Skipped:    %d\n", summary.Skipped)
-	fmt.Printf("Duplicates: %d\n", summary.Duplicates)
-	fmt.Printf("Errors:     %d\n", summary.Errors)
+	if paginationEnabled || pageCount > 1 {
+		fmt.Printf("Pages processed:   %d\n", pageCount)
+		fmt.Printf("Images downloaded: %d\n", totalSummary.Downloaded)
+	} else {
+		fmt.Printf("Downloaded:        %d\n", totalSummary.Downloaded)
+	}
+	fmt.Printf("Skipped:           %d\n", totalSummary.Skipped)
+	fmt.Printf("Duplicates:        %d\n", totalSummary.Duplicates)
+	fmt.Printf("Errors:            %d\n", totalSummary.Errors)
 
 	return 0
 }
@@ -297,7 +398,7 @@ func normalizeArgs(args []string) []string {
 			flagName := strings.TrimLeft(arg, "-")
 			if !strings.Contains(flagName, "=") {
 				switch flagName {
-				case "limit-size", "output-dir", "workers":
+				case "limit-size", "output-dir", "workers", "max-pages":
 					if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 						i++
 						flags = append(flags, args[i])
