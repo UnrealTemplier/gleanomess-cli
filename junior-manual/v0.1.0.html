@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GleanoMess v0.1.0 — Исчерпывающая Документация Разработчика</title>
+    <style>
+        :root {
+            --bg-canvas: #120e0c;
+            --bg-sidebar: #17120f;
+            --bg-card: #1c1613;
+            --bg-card-hover: #231c17;
+            --bg-code: #15100e;
+            --bg-code-header: #1f1814;
+            --bg-callout-term: #1f1811;
+            --bg-callout-tip: #1f1a10;
+            --bg-callout-deep: #241812;
+            --bg-callout-warn: #26140e;
+            
+            --border-subtle: #2d221a;
+            --border-medium: #423226;
+            --border-strong: #5e4635;
+            --border-focus: #f59e0b;
+
+            --text-main: #f0e6dc;
+            --text-muted: #ab9887;
+            --text-dim: #78685a;
+            
+            --amber-bright: #ffb84d;
+            --amber-main: #f59e0b;
+            --amber-deep: #d97706;
+            --amber-dark: #92400e;
+            --amber-glow: rgba(245, 158, 11, 0.22);
+            --amber-subtle: rgba(245, 158, 11, 0.08);
+
+            --accent-green: #a3b84d;
+            --accent-copper: #d97736;
+            --accent-gold: #eab308;
+            --accent-fire: #ea580c;
+
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --sidebar-width: 300px;
+            --toc-width: 250px;
+            --header-height: 60px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 15px;
+            line-height: 1.68;
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        /* Subtle scanlines retro texture */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 14, 12, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+
+        a {
+            color: var(--amber-bright);
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(255, 184, 77, 0.4);
+            transition: all 0.2s ease;
+        }
+        a:hover {
+            color: #fff;
+            border-bottom-color: var(--amber-bright);
+            text-shadow: 0 0 8px var(--amber-glow);
+        }
+
+        header.top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: rgba(20, 16, 13, 0.94);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border-medium);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 1000;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            text-decoration: none;
+            border: none;
+        }
+        .brand-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--amber-main);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--amber-bright);
+            font-family: var(--font-mono);
+            font-weight: 900;
+            font-size: 1.1rem;
+            box-shadow: 0 0 10px var(--amber-glow);
+        }
+        .brand-text {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--amber-bright);
+            letter-spacing: -0.02em;
+        }
+        .brand-tag {
+            font-size: 0.72rem;
+            background: var(--amber-subtle);
+            color: var(--amber-bright);
+            padding: 2px 7px;
+            border-radius: 4px;
+            border: 1px solid var(--amber-dark);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .version-switcher {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            padding: 4px 10px;
+        }
+        .version-switcher label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+        .version-select {
+            background: transparent;
+            border: none;
+            color: var(--amber-bright);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+        .version-select option {
+            background: var(--bg-sidebar);
+            color: var(--text-main);
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-box input {
+            background: var(--bg-code);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            padding: 6px 12px 6px 32px;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            width: 220px;
+            transition: all 0.2s;
+            outline: none;
+        }
+        .search-box input:focus {
+            width: 280px;
+            border-color: var(--amber-main);
+            box-shadow: 0 0 8px var(--amber-glow);
+        }
+        .search-box svg {
+            position: absolute;
+            left: 10px;
+            width: 14px;
+            height: 14px;
+            fill: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .app-container {
+            display: flex;
+            margin-top: var(--header-height);
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        nav.sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-subtle);
+            position: fixed;
+            top: var(--header-height);
+            bottom: 0;
+            left: 0;
+            overflow-y: auto;
+            padding: 1.5rem 1rem 3rem 1.25rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-strong) transparent;
+        }
+        nav.sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        nav.sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 3px;
+        }
+
+        .nav-group {
+            margin-bottom: 1.6rem;
+        }
+        .nav-group-title {
+            font-family: var(--font-mono);
+            font-size: 0.73rem;
+            font-weight: 700;
+            color: var(--amber-main);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-group-title::before {
+            content: "//";
+            color: var(--text-dim);
+        }
+        .nav-links {
+            list-style: none;
+        }
+        .nav-links li {
+            margin-bottom: 0.2rem;
+        }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 10px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            border: none;
+            transition: all 0.15s ease;
+        }
+        .nav-link:hover {
+            color: var(--text-main);
+            background: var(--amber-subtle);
+            text-shadow: none;
+        }
+        .nav-link.active {
+            color: var(--amber-bright);
+            background: rgba(245, 158, 11, 0.14);
+            font-weight: 600;
+            border-left: 2px solid var(--amber-main);
+        }
+        .nav-badge {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: var(--border-subtle);
+            color: var(--text-dim);
+        }
+        .nav-badge.core {
+            background: var(--amber-dark);
+            color: #ffecd1;
+        }
+
+        main.main-content {
+            margin-left: var(--sidebar-width);
+            margin-right: var(--toc-width);
+            padding: 2.5rem 3.5rem 5rem 3.5rem;
+            width: calc(100% - var(--sidebar-width) - var(--toc-width));
+            max-width: 1040px;
+        }
+
+        aside.toc {
+            width: var(--toc-width);
+            position: fixed;
+            top: var(--header-height);
+            right: 0;
+            bottom: 0;
+            padding: 2rem 1.25rem;
+            border-left: 1px solid var(--border-subtle);
+            overflow-y: auto;
+            font-size: 0.82rem;
+        }
+        .toc-title {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--amber-main);
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+        .toc-list {
+            list-style: none;
+        }
+        .toc-item {
+            margin-bottom: 0.45rem;
+            line-height: 1.4;
+        }
+        .toc-item a {
+            color: var(--text-muted);
+            border: none;
+            display: block;
+            padding: 2px 0;
+            transition: color 0.15s;
+        }
+        .toc-item a:hover {
+            color: var(--amber-bright);
+            text-shadow: none;
+        }
+        .toc-item.active a {
+            color: var(--amber-bright);
+            font-weight: 600;
+        }
+        .toc-item.h3 {
+            padding-left: 14px;
+            font-size: 0.78rem;
+        }
+
+        .breadcrumbs {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .breadcrumbs span {
+            color: var(--amber-main);
+        }
+
+        h1 {
+            font-size: 2.35rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.03em;
+            font-weight: 800;
+            border-bottom: 2px solid var(--border-medium);
+            padding-bottom: 0.6rem;
+        }
+        h1 span {
+            color: var(--amber-bright);
+        }
+
+        .lead-text {
+            font-size: 1.12rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            line-height: 1.7;
+        }
+
+        h2 {
+            font-size: 1.55rem;
+            font-family: var(--font-mono);
+            color: var(--amber-bright);
+            margin-top: 3.2rem;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 0.45rem;
+        }
+        h2::before {
+            content: "§";
+            color: var(--amber-dark);
+            font-weight: 400;
+        }
+
+        h3 {
+            font-size: 1.22rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+            margin-top: 2rem;
+            margin-bottom: 0.8rem;
+        }
+
+        h4 {
+            font-size: 1rem;
+            font-family: var(--font-mono);
+            color: var(--amber-main);
+            margin-top: 1.4rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        p, ul, ol {
+            margin-bottom: 1.25rem;
+            color: var(--text-main);
+        }
+        ul, ol {
+            padding-left: 1.4rem;
+        }
+        li {
+            margin-bottom: 0.45rem;
+        }
+
+        strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        code.inline-code {
+            background: #231c18;
+            color: var(--amber-bright);
+            font-family: var(--font-mono);
+            font-size: 0.86em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-medium);
+        }
+
+        .callout {
+            border-radius: 6px;
+            padding: 1.2rem 1.4rem;
+            margin: 1.75rem 0;
+            border-left: 4px solid;
+            position: relative;
+        }
+        .callout-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.92rem;
+            margin-bottom: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .callout-term {
+            background: var(--bg-callout-term);
+            border-left-color: var(--amber-main);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-term .callout-header {
+            color: var(--amber-bright);
+        }
+
+        .callout-deep {
+            background: var(--bg-callout-deep);
+            border-left-color: var(--accent-copper);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-deep .callout-header {
+            color: var(--accent-copper);
+        }
+
+        .callout-tip {
+            background: var(--bg-callout-tip);
+            border-left-color: var(--accent-gold);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-tip .callout-header {
+            color: var(--accent-gold);
+        }
+
+        .callout-warn {
+            background: var(--bg-callout-warn);
+            border-left-color: var(--accent-fire);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-warn .callout-header {
+            color: var(--accent-fire);
+        }
+
+        .callout p:last-child {
+            margin-bottom: 0;
+        }
+
+        .code-container {
+            margin: 1.6rem 0;
+            background: var(--bg-code);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        .code-header {
+            background: var(--bg-code-header);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .code-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .code-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--border-strong);
+            display: inline-block;
+        }
+        .code-dot.amber {
+            background: var(--amber-main);
+            box-shadow: 0 0 6px var(--amber-main);
+        }
+        .copy-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            color: var(--text-muted);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            color: var(--amber-bright);
+            border-color: var(--amber-main);
+        }
+
+        pre.code-block {
+            padding: 1.1rem 1.3rem;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.86rem;
+            line-height: 1.6;
+            color: #e6dacd;
+            scrollbar-width: thin;
+        }
+
+        .token-keyword { color: #f59e0b; font-weight: bold; }
+        .token-func    { color: #ffc870; }
+        .token-string  { color: #d4a373; }
+        .token-comment { color: #7f6e61; font-style: italic; }
+        .token-type    { color: #e6b87d; font-weight: 600; }
+        .token-num     { color: #f39c12; }
+        .token-const   { color: #e07a5f; }
+
+        .walkthrough-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .walkthrough-table th, .walkthrough-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .walkthrough-table th {
+            background: var(--bg-card);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--amber-bright);
+            text-transform: uppercase;
+        }
+        .walkthrough-table tr:hover td {
+            background: rgba(245, 158, 11, 0.04);
+        }
+        .walkthrough-table td.code-cell {
+            font-family: var(--font-mono);
+            font-size: 0.83rem;
+            width: 44%;
+            color: #ffecd1;
+            background: #17120e;
+            vertical-align: top;
+            border-right: 1px solid var(--border-subtle);
+        }
+        .walkthrough-table td.desc-cell {
+            vertical-align: top;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .ascii-diagram {
+            background: #15100d;
+            border: 1px solid var(--amber-dark);
+            border-radius: 6px;
+            padding: 1.25rem;
+            margin: 1.75rem 0;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: var(--amber-bright);
+            overflow-x: auto;
+            white-space: pre;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--amber-main);
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+        .modal-box h3 {
+            color: var(--amber-bright);
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        .modal-close-btn {
+            background: var(--amber-main);
+            color: var(--bg-canvas);
+            border: none;
+            padding: 8px 16px;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+        }
+
+        @media (max-width: 1200px) {
+            aside.toc {
+                display: none;
+            }
+            main.main-content {
+                margin-right: 0;
+                width: calc(100% - var(--sidebar-width));
+            }
+        }
+        @media (max-width: 800px) {
+            nav.sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                z-index: 1001;
+            }
+            nav.sidebar.open {
+                transform: translateX(0);
+            }
+            main.main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-header">
+        <a href="#intro" class="header-brand">
+            <div class="brand-logo">GM</div>
+            <div class="brand-text">GleanoMess</div>
+            <span class="brand-tag">v0.1.0 DOCS</span>
+        </a>
+
+        <div class="header-controls">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="searchInput" placeholder="Поиск по доке и коду (Ctrl+K)...">
+            </div>
+
+            <div class="version-switcher">
+                <label for="versionSelect">Ver:</label>
+                <select id="versionSelect" class="version-select" onchange="switchVersion(this.value)">
+                    <option value="0.1.1">v0.1.1 (Актуальная)</option>
+                    <option value="0.1.0" selected>v0.1.0 (Архив)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="nav-group">
+                <div class="nav-group-title">Введение и Концепция</div>
+                <ul class="nav-links">
+                    <li><a href="#intro" class="nav-link active">1. Философия проекта</a></li>
+                    <li><a href="#pipeline" class="nav-link">2. Архитектурный конвейер</a></li>
+                    <li><a href="#scope-invariants" class="nav-link">3. Границы Scope и Инварианты</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Инженерный Глоссарий</div>
+                <ul class="nav-links">
+                    <li><a href="#glossary" class="nav-link">База терминов <span class="nav-badge core">16 ТЕМ</span></a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: CLI & Core</div>
+                <ul class="nav-links">
+                    <li><a href="#code-main" class="nav-link">cmd/gleanomess/main.go <span class="nav-badge">CLI</span></a></li>
+                    <li><a href="#normalize-args" class="nav-link">Обход ограничений flag</a></li>
+                    <li><a href="#target-dir" class="nav-link">Симлинки и resolveTargetDir</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Изображения</div>
+                <ul class="nav-links">
+                    <li><a href="#code-imageinfo" class="nav-link">internal/imageinfo.go</a></li>
+                    <li><a href="#code-avif" class="nav-link">internal/avif.go <span class="nav-badge core">PURE GO</span></a></li>
+                    <li><a href="#isobmff-details" class="nav-link">Анатомия ISOBMFF и ispe</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Скрейпер</div>
+                <ul class="nav-links">
+                    <li><a href="#code-scraper" class="nav-link">internal/scraper.go</a></li>
+                    <li><a href="#code-srcset" class="nav-link">internal/srcset.go</a></li>
+                    <li><a href="#candidate-ranking" class="nav-link">Эвристика ранжирования</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Сеть и Файлы</div>
+                <ul class="nav-links">
+                    <li><a href="#code-naming" class="nav-link">internal/naming.go</a></li>
+                    <li><a href="#code-dedup" class="nav-link">internal/dedup.go</a></li>
+                    <li><a href="#code-downloader" class="nav-link">internal/downloader.go</a></li>
+                    <li><a href="#code-client" class="nav-link">internal/client.go</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Для Go-Джуниоров</div>
+                <ul class="nav-links">
+                    <li><a href="#junior-guide" class="nav-link">Учебные уроки и паттерны</a></li>
+                    <li><a href="#faq" class="nav-link">Частые ошибки и ловушки</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+
+            <div class="breadcrumbs">
+                Документация <span>/</span> Версия v0.1.0 <span>/</span> Архитектура и Исходный Код
+            </div>
+
+            <h1 id="intro">GleanoMess: <span>Архитектура и Анализ Исходного Кода</span></h1>
+            <p class="lead-text">
+                Исчерпывающее техническое руководство, разбор исходного кода строка за строкой, инженерный глоссарий и учебное руководство для Go-разработчиков первой рабочей версии автономной утилиты GleanoMess.
+            </p>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Как читать эту документацию начинающему разработчику</div>
+                <p>
+                    Этот документ создан не просто как справочник по флагам, а как <strong>учебное пособие уровня Senior &rarr; Junior</strong>. Вся кодовая база проекта написана на чистом, идиоматическом Go (без CGO, без тяжелых фреймворков, без скрытой магии). В каждом разделе вы найдете: 
+                    <code>строку исходного кода</code>, подробное объяснение, <strong>почему</strong> она написана именно так, и специальный блок с разбором базовых и продвинутых терминов компьютерных наук (Computer Science).
+                </p>
+            </div>
+
+            <!-- SECTION 1: PIPELINE -->
+            <h2 id="pipeline">1. Архитектурный конвейер (Data Pipeline)</h2>
+            <p>
+                Главная задача утилиты — взять один HTTP(S) URL веб-страницы, разобрать статический HTML без использования тяжелых браузерных движков, найти все растровые изображения, эвристически предпочесть полноразмерные оригиналы миниатюрам, параллельно скачать их без пережатия байт и аккуратно сохранить на диск.
+            </p>
+
+            <div class="ascii-diagram">
++---------------------------------------------------------------------------------------------------------+
+|                                    GLEANOMESS DATA PIPELINE (v0.1.0)                                     |
++---------------------------------------------------------------------------------------------------------+
+
+  [ CLI Invocation ]  --> gleanomess https://example.com/gallery --limit-size 256 --workers 4
+         |
+         v
+  [ cmd/gleanomess ]  --> parse args, resolve executable directory, create folder: ./example.com/
+         |
+         +--> HTTPClient.FetchPage() (CookieJar, Referer, User-Agent, redirects bound <= 10)
+         |
+         v
+  [ internal/scraper ] --> golang.org/x/net/html DOM Walker
+         |
+         |---> Enclosing &lt;a href&gt; raster check (Rank 100 - Highest)
+         |---> data-original / data-full / data-large attributes (Rank 90)
+         |---> &lt;picture&gt;&lt;source srcset&gt; max width/density (Rank 80)
+         |---> &lt;img srcset&gt; max width/density (Rank 70)
+         |---> data-src / data-lazy attributes (Rank 60)
+         |---> &lt;img src&gt; fallback (Rank 50)
+         |---> Standalone &lt;a href&gt;, &lt;meta og/twitter&gt;, JSON-LD schemas, CSS background url()
+         |
+         +--> URL Normalization &amp; Relative URL Resolution (against &lt;base href&gt; or page URL)
+         |
+         v
+  [ Candidate Queue ] --> Ordered, deduplicated slice of []*scraper.Candidate
+         |
+         v
+  [ Worker Pool ]     --> Bounded N goroutines (default: 4) reading from channel
+         |
+         +--> [ For each candidate ]:
+                   |
+                   +--> URL Deduplication Check (URLTracker)
+                   +--> HTTP GET with Retry (exponential backoff + jitter for 408, 429, 500, 502, 503, 504)
+                   +--> Stream response body to disk: ./.gleanomess-*.tmp
+                   |    via io.MultiWriter(tempFile, sha256Hasher)
+                   +--> Content Deduplication Check (ContentTracker: sha256 hex match)
+                   |    [Match found? -> Delete temp file -> Mark Duplicate]
+                   +--> Format Sniffing &amp; Dimension Inspection (internal/imageinfo)
+                   |    Reads magic bytes &amp; box headers via DecodeConfig (NO FULL PIXEL DECODING)
+                   |    [Non-raster (SVG/ICO/HTML) or invalid? -> Delete temp file -> Mark Skipped]
+                   +--> Size Filter Enforcement: max(width, height) >= limitSize
+                   |    [Condition failed? -> Delete temp file -> Mark Skipped]
+                   +--> Cross-platform Filename Resolution (internal/naming):
+                   |    Content-Disposition -> URL path basename -> image_&lt;hash&gt;.ext
+                   |    Sanitize invalid chars (:*?"&lt;&gt;|), Windows reserved devices (CON, PRN), collision check (_2)
+                   +--> Atomic Rename: os.Rename(.tmp, final_filename.ext)
+                   +--> Register SHA-256 in ContentTracker &amp; Report Progress
+         |
+         v
+  [ Summary Output ]  --> Compact / Verbose execution statistics. Exit code: 0
+            </div>
+
+            <!-- SECTION 2: SCOPE & INVARIANTS -->
+            <h2 id="scope-invariants">2. Границы Scope v0.1 и Непреложные Инварианты</h2>
+            <div class="callout callout-warn">
+                <div class="callout-header">⚠️ 12 Архитектурных Инвариантов (Invariants - DO NOT VIOLATE)</div>
+                <ol>
+                    <li><strong>Никакого пережатия (Zero Recompression):</strong> Байт в байт сохранять исходный поток данных, полученный по HTTP. Любое повторное кодирование через <code>jpeg.Encode</code> уничтожает метаданные и вносит артефакты сжатия с потерями.</li>
+                    <li><strong>Не доверять расширениям файлов:</strong> Расширение в URL (`.jpg`) может быть ложным (например, скрипт `image.php` отдающий PNG или HTML 404). Проверка типа выполняется строго по сигнатурам (Magic Bytes) и заголовкам декодеров.</li>
+                    <li><strong>Разрешение относительных ссылок против базового URL:</strong> Относительные пути (`../images/pic.png`) разрешаются относительно финального URL страницы (после редиректов) или тега <code>&lt;base href&gt;</code>, с обязательным отсечением фрагментов (<code>#...</code>).</li>
+                    <li><strong>Фильтр размера — это <code>max(width, height) >= N</code>:</strong> Если хотя бы одна из сторон изображения (длина или ширина) больше или равна N, изображение принимается.</li>
+                    <li><strong>Никакого полного декодирования в RAM:</strong> Чтобы узнать размеры картинки 8000x6000, нельзя аллоцировать в куче 192 МБ под RGBA-пиксели. Используется строго <code>DecodeConfig</code>.</li>
+                    <li><strong>Запись во временные файлы (.tmp) перед финализацией:</strong> Ни один незавершенный или поврежденный файл не должен получить финальное имя на диске.</li>
+                    <li><strong>Дедупликация URL:</strong> Один и тот же нормализованный URL скачивается ровно 1 раз за сессию.</li>
+                    <li><strong>Дедупликация содержимого:</strong> Разные URL, вернувшие идентичные байты (одинаковый хеш SHA-256), не создают дубликаты на диске.</li>
+                    <li><strong>Изоляция сбоев:</strong> Ошибка 404 или таймаут на одном изображении не имеют права прерывать загрузку остальных изображений на странице.</li>
+                    <li><strong>Парсинг HTML через DOM, а не регулярные выражения:</strong> Использовать только <code>golang.org/x/net/html</code>.</li>
+                    <li><strong>Выходной каталог по умолчанию — рядом с бинарником:</strong> Путь рассчитывается от <code>os.Executable()</code> с учетом физического расположения симлинка.</li>
+                    <li><strong>Честный Scope:</strong> Никакого headless-браузера и обхода динамического JS в v0.1.</li>
+                </ol>
+            </div>
+
+            <!-- SECTION 3: GLOSSARY -->
+            <h2 id="glossary">3. Инженерный Глоссарий (База Терминов)</h2>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: DOM (Document Object Model) и AST (Abstract Syntax Tree)</div>
+                <p>
+                    <strong>DOM (Объектная Модель Документа)</strong> — это древовидное представление структуры HTML-документа в оперативной памяти. Каждый HTML-тег (например, <code>&lt;img&gt;</code>, <code>&lt;a&gt;</code>) и каждый текстовый фрагмент становятся узлами (<code>Node</code>) этого дерева, имеющими ссылки на родителя (<code>Parent</code>), первого потомка (<code>FirstChild</code>) и соседний узел (<code>NextSibling</code>).
+                </p>
+                <p>
+                    В Go пакет <code>golang.org/x/net/html</code> считывает поток байт и строит такое дерево согласно стандарту HTML5. В отличие от регулярных выражений, DOM-парсер понимает контекст вложенности: мы можем точно определить, что тег <code>&lt;img&gt;</code> физически находится внутри контейнера <code>&lt;picture&gt;</code> или ссылки <code>&lt;a href&gt;</code>.
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Magic Bytes (Сигнатуры Файлов) и MIME-тип</div>
+                <p>
+                    <strong>Magic Bytes (Магические Байты)</strong> — это уникальная последовательность байт в самом начале файла, стандартизированная спецификацией формата для его мгновенной идентификации операционными системами и парсерами независимо от расширения файла.
+                </p>
+                <ul>
+                    <li><strong>PNG:</strong> Всегда начинается с 8 байт: <code>\x89 P N G \r \n \x1a \n</code> (<code>89 50 4E 47 0D 0A 1A 0A</code>).</li>
+                    <li><strong>JPEG:</strong> Всегда начинается с маркера SOI (Start of Image): <code>0xFF 0xD8 0xFF</code>.</li>
+                    <li><strong>GIF:</strong> Начинается с ASCII-строки <code>GIF87a</code> или <code>GIF89a</code>.</li>
+                    <li><strong>WebP:</strong> Является контейнером RIFF: первые 4 байта <code>RIFF</code>, затем 4 байта размера, затем 4 байта <code>WEBP</code>.</li>
+                    <li><strong>BMP:</strong> Начинается с ASCII-символов <code>BM</code> (<code>0x42 0x4D</code>).</li>
+                    <li><strong>TIFF:</strong> <code>II*\x00</code> (Little-Endian) или <code>MM\x00*</code> (Big-Endian).</li>
+                </ul>
+                <p>
+                    <strong>MIME-тип (Content-Type)</strong> — это метаданные, отправляемые веб-сервером в HTTP-заголовке (например, <code>image/webp</code>). Сервер может ошибаться и отдавать WebP с заголовком <code>application/octet-stream</code>. Поэтому GleanoMess использует трехуровневую валидацию: <em>Magic Bytes (наивысший приоритет) &rarr; Content-Type &rarr; расширение URL (как крайний fallback)</em>.
+                </p>
+            </div>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Deep Dive: Формат ISOBMFF и структура коробок AVIF (Box/Atom)</div>
+                <p>
+                    <strong>AVIF (AV1 Image File Format)</strong> базируется на стандарте <strong>ISOBMFF (ISO Base Media File Format / ISO/IEC 14496-12)</strong> — том же контейнере, на котором построены MP4 и HEIF. Файл состоит из иерархических структурных блоков, называемых <strong>Box (или Atom)</strong>.
+                </p>
+                <p>
+                    Каждый Box имеет бинарный заголовок:
+                </p>
+                <ul>
+                    <li><code>4 байта (uint32 Big-Endian)</code>: Полный размер бокса в байтах, включая заголовок. (Если равен 1, то размер 64-битный и записан в следующих 8 байтах).</li>
+                    <li><code>4 байта (FourCC ASCII)</code>: 4-символьный идентификатор типа бокса (например, <code>ftyp</code>, <code>meta</code>, <code>iprp</code>, <code>ipco</code>, <code>ispe</code>).</li>
+                </ul>
+                <p>
+                    <strong>Где лежат размеры картинки AVIF?</strong> Они хранятся в боксе <code>ispe</code> (Image Spatial Extents Property) внутри пути <code>meta &rarr; iprp &rarr; ipco &rarr; ispe</code>. Бокс <code>ispe</code> содержит ширину и высоту в виде двух 32-битных чисел. Это позволяет GleanoMess извлечь геометрию AVIF за доли миллисекунды, считав первые несколько килобайт файла и не декодируя тяжелые AV1-видеопотоки!
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Big-Endian (Сетевой порядок байт) vs Little-Endian</div>
+                <p>
+                    <strong>Endianness (Порядок байтов)</strong> определяет, в каком порядке байты многобайтового числа (например, 32-битного <code>uint32</code>) располагаются в памяти:
+                </p>
+                <ul>
+                    <li><strong>Big-Endian (Прямой порядок):</strong> Старший байт числа записывается первым (по младшему адресу). Это стандарт для сетевых протоколов интернета и медиа-контейнеров MP4/ISOBMFF. Число <code>0x12345678</code> хранится как <code>[0x12, 0x34, 0x56, 0x78]</code>.</li>
+                    <li><strong>Little-Endian (Обратный порядок):</strong> Младший байт записывается первым. Стандарт для архитектур процессоров x86-64 и ARM64. Число <code>0x12345678</code> хранится в RAM как <code>[0x78, 0x56, 0x34, 0x12]</code>.</li>
+                </ul>
+                <p>
+                    В Go функция <code>binary.BigEndian.Uint32(b)</code> преобразует 4 сырых байта из сетевого Big-Endian формата в число, понятное процессору машины.
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Bounded Worker Pool (Ограниченный пул воркеров) и Каналы</div>
+                <p>
+                    <strong>Паттерн Worker Pool</strong> решает проблему неконтролируемого потребления ресурсов. Если на странице найдено 500 картинок, наивный программист напишет <code>go download(img)</code> в цикле, породив 500 одновременных сетевых соединений. Это приведет к ошибкам <code>Too many open files (socket exhaustion)</code>, блокировке по IP со стороны CDN и падению ОС по памяти.
+                </p>
+                <p>
+                    GleanoMess создает фиксированное количество долгоживущих горутин (по умолчанию 4, флаг <code>--workers N</code>), которые читают задачи из одного буферизованного канала Go (<code>chan job</code>). Как только воркер освобождается, он автоматически берет следующую задачу. Синхронизация завершения всех задач выполняется через <code>sync.WaitGroup</code>.
+                </p>
+            </div>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Deep Dive: Race Condition, sync.Mutex и Deadlock в многопоточности</div>
+                <p>
+                    Когда несколько горутин-воркеров одновременно пытаются записать данные в общую структуру (например, зарегистрировать скачанный URL в <code>map[string]bool</code> или сгенерировать уникальное имя файла), возникает <strong>Состояние Гонки (Data Race)</strong>, что в Go приводит к фатальной панике <code>fatal error: concurrent map writes</code>.
+                </p>
+                <p>
+                    Для защиты используется <strong>Мьютекс (sync.Mutex)</strong>. Вызов <code>mu.Lock()</code> захватывает критическую секцию. Другая горутина при попытке захвата блокируется до вызова <code>mu.Unlock()</code>. 
+                    <strong>Правило надежности Go:</strong> вызывать <code>defer mu.Unlock()</code> сразу после <code>mu.Lock()</code>. Это гарантирует разблокировку даже в случае паники или досрочного выхода из функции через <code>return</code>, предотвращая вечную блокировку всей программы (<strong>Deadlock</strong>).
+                </p>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Совет для Go-джуниора: Graceful Shutdown и context.Context</div>
+                <p>
+                    Что происходит, когда пользователь нажимает <kbd>Ctrl+C</kbd> во время скачивания?
+                    В плохих программах процесс мгновенно убивается операционной системой, оставляя на диске мусор из полускачанных файлов и поврежденных дескрипторов.
+                </p>
+                <p>
+                    В GleanoMess используется связка <code>signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)</code>. При нажатии Ctrl+C контекст переходит в состояние отмены (<code>ctx.Done()</code>). Все сетевые HTTP-запросы мгновенно прерываются, воркеры выходят из циклов, а блоки <code>defer</code> удаляют временные файлы <code>.tmp</code>. Программа завершается чисто и аккуратно.
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Exponential Backoff и Jitter (Борьба с Thundering Herd)</div>
+                <p>
+                    При получении временных ошибок (HTTP 503 Service Unavailable, 429 Too Many Requests или 502 Bad Gateway) нельзя делать повторный запрос немедленно — это добьет перегруженный сервер.
+                </p>
+                <p>
+                    Применяется <strong>Exponential Backoff (Экспоненциальная задержка)</strong>: пауза между попытками растет по формуле <code>Base * 2^attempt</code> (например, 200мс &rarr; 400мс &rarr; 800мс). 
+                    К ней обязательно добавляется <strong>Jitter (Случайный шум)</strong>: случайная добавка от 0 до 100мс. Зачем? Если 100 параллельных клиентов получат ошибку одновременно, без джиттера они все ровно через 400 мс синхронно отправят повторный запрос (эффект "громоподобного стада" — <em>Thundering Herd Problem</em>). Джиттер размазывает нагрузку во времени.
+                </p>
+            </div>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Deep Dive: Атомарный Rename в POSIX-файловых системах</div>
+                <p>
+                    Почему нельзя скачивать файл прямо в <code>photo.jpg</code>? Если сеть оборвется на 40% загрузки, в папке останется битый файл с валидным именем. Следующий скрипт или программа попытаются открыть его и упадут с ошибкой.
+                </p>
+                <p>
+                    Решение — <strong>Temporary Storage &amp; Atomic Rename</strong>. Файл скачивается во временный скрытый файл <code>.gleanomess-*.tmp</code> в той же файловой системе. Только после завершения потока, проверки SHA-256, валидации геометрии и подбора имени вызывается <code>os.Rename(tmpPath, finalPath)</code>. В POSIX/Linux системный вызов <code>rename(2)</code> меняет указатель inode в каталоге <strong>атомарно</strong>: сторонний процесс никогда не увидит полуготовый файл — он либо видит его целиком, либо не видит вовсе.
+                </p>
+            </div>
+
+            <!-- SECTION 4: CODE WALKTHROUGH MAIN -->
+            <h2 id="code-main">4. Разбор Кода: CLI и Точка входа (cmd/gleanomess/main.go)</h2>
+            <p>
+                Файл <code>cmd/gleanomess/main.go</code> координирует запуск CLI, обрабатывает сигналы завершения операционной системы, парсит флаги и запускает стадии скрейпинга и загрузки.
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> cmd/gleanomess/main.go — Архитектура функции run()</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> <span class="token-func">main</span>() {
+    exitCode := <span class="token-func">run</span>(os.Args[1:])
+    os.<span class="token-func">Exit</span>(exitCode)
+}
+
+<span class="token-keyword">func</span> <span class="token-func">run</span>(args []<span class="token-type">string</span>) <span class="token-type">int</span> {
+    fs := flag.<span class="token-func">NewFlagSet</span>(<span class="token-string">"gleanomess"</span>, flag.ContinueOnError)
+
+    <span class="token-keyword">var</span> (
+        limitSize <span class="token-type">int</span>
+        outputDir <span class="token-type">string</span>
+        workers   <span class="token-type">int</span>
+        verbose   <span class="token-type">bool</span>
+    )
+
+    fs.<span class="token-func">IntVar</span>(&amp;limitSize, <span class="token-string">"limit-size"</span>, <span class="token-num">0</span>, <span class="token-string">"filter images with max(width, height) &gt;= N"</span>)
+    fs.<span class="token-func">StringVar</span>(&amp;outputDir, <span class="token-string">"output-dir"</span>, <span class="token-string">""</span>, <span class="token-string">"override base output directory"</span>)
+    fs.<span class="token-func">IntVar</span>(&amp;workers, <span class="token-string">"workers"</span>, <span class="token-num">4</span>, <span class="token-string">"number of concurrent download workers"</span>)
+    fs.<span class="token-func">BoolVar</span>(&amp;verbose, <span class="token-string">"verbose"</span>, <span class="token-const">false</span>, <span class="token-string">"enable detailed verbose output"</span>)
+    fs.<span class="token-func">BoolVar</span>(&amp;verbose, <span class="token-string">"v"</span>, <span class="token-const">false</span>, <span class="token-string">"enable detailed verbose output (shorthand)"</span>)
+    <span class="token-comment">// ...</span>
+}</code></pre>
+            </div>
+
+            <table class="walkthrough-table">
+                <thead>
+                    <tr>
+                        <th>Блок Кода</th>
+                        <th>Что конкретно делает и почему так написано</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="code-cell">
+func main() {<br>
+&nbsp;&nbsp;exitCode := run(os.Args[1:])<br>
+&nbsp;&nbsp;os.Exit(exitCode)<br>
+}
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Паттерн тестируемости CLI:</strong> В Go вызов <code>os.Exit()</code> внутри <code>main()</code> немедленно убивает процесс, не давая выполниться отложенным вызовам <code>defer</code> и делая невозможным прямое тестирование через <code>go test</code>. Разделение на <code>main()</code> и <code>run(args) int</code> позволяет модульным тестам вызывать <code>run()</code> с любыми аргументами и точно проверять возвращаемый код выхода (0, 1 или 2).
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell" id="normalize-args">
+func normalizeArgs(args []string) []string {<br>
+&nbsp;&nbsp;// Перегруппировка флагов и URL<br>
+}
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Решение ограничения стандартного пакета flag:</strong> По умолчанию в Go парсер <code>flag.FlagSet</code> прекращает разбор флагов сразу же, как только встречает первый позиционный аргумент без дефиса. Поэтому в команде <code>gleanomess https://example.com --limit-size 256</code> флаг <code>--limit-size</code> игнорировался бы! Функция <code>normalizeArgs</code> аккуратно переставляет аргументы так, чтобы флаги шли первыми, позволяя пользователю ставить URL как в начале, так и в конце команды.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell" id="target-dir">
+exePath, _ := os.Executable()<br>
+realPath, _ := filepath.EvalSymlinks(exePath)<br>
+baseDir = filepath.Dir(realPath)
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Инвариант расположения:</strong> По умолчанию папка сайта создается рядом с исполняемым файлом. Но если бинарник запущен через символическую ссылку (например, из <code>/usr/local/bin/gleanomess &rarr; /opt/tools/gleanomess</code>), функция <code>filepath.EvalSymlinks</code> вычисляет настоящий физический каталог бинарника.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">
+sanitizedHost := invalidHostCharsRegex.<br>
+&nbsp;&nbsp;ReplaceAllString(host, "_")
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Безопасность каталогов (Path Traversal Guard):</strong> Из имени хоста удаляется только префикс <code>www.</code>, а любые запрещенные символы (двоеточия портов, слэши) заменяются на <code>_</code>. Имя очищается от ведущих точек, что исключает атаку <code>../</code> и запись файлов вне целевой папки.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- SECTION 5: IMAGEINFO -->
+            <h2 id="code-imageinfo">5. Разбор Кода: Форматы, Сигнатуры и Pure-Go AVIF (internal/imageinfo)</h2>
+            <p>
+                Пакет <code>internal/imageinfo</code> отвечает за валидацию форматов и считывание геометрических параметров (ширина и высота) строго без десериализации пиксельного растра в оперативную память.
+            </p>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Почему DecodeConfig, а не Decode?</div>
+                <p>
+                    Стандартная функция <code>image.Decode(r)</code> декодирует всю матрицу несжатых пикселей в структуру <code>*image.RGBA</code>. Для типичной фотографии со смартфона 4000x3000 в 32-битном цвете это составляет <code>4000 * 3000 * 4 байта = 48 МБ памяти</code> на одну картинку. При 4 параллельных воркерах это создаст мгновенную нагрузку в сотни мегабайт в куче, вызывая задержки Garbage Collector.
+                </p>
+                <p>
+                    Функция <code>image.DecodeConfig(r)</code> считывает только служебные метаданные (заголовки кадра) за несколько сотен наносекунд с нулевыми аллокациями памяти под пиксели!
+                </p>
+            </div>
+
+            <h3 id="code-avif">Разбор Pure-Go AVIF парсера (internal/imageinfo/avif.go)</h3>
+            <p>
+                Поскольку в стандартной библиотеке Go и в <code>golang.org/x/image</code> нет нативной поддержки AVIF, а сторонние библиотеки требуют CGO или тяжелый WASM-рантайм (wazero), мы реализовали собственный компактный и сверхбыстрый парсер заголовков ISOBMFF.
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/imageinfo/avif.go — Считывание геометрии ispe</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> <span class="token-func">init</span>() {
+    <span class="token-comment">// Регистрируем формат в стандартном пакете image</span>
+    image.<span class="token-func">RegisterFormat</span>(<span class="token-string">"avif"</span>, <span class="token-string">"????ftyp"</span>, decodeAVIFStub, DecodeAVIFConfig)
+}
+
+<span class="token-keyword">func</span> <span class="token-func">DecodeAVIFConfig</span>(r io.<span class="token-type">Reader</span>) (image.<span class="token-type">Config</span>, <span class="token-type">error</span>) {
+    <span class="token-comment">// 1. Валидация ftyp бокса (первые 12+ байт)</span>
+    <span class="token-comment">// 2. Поиск бокса 'meta' (FullBox: version + flags)</span>
+    <span class="token-comment">// 3. Поиск внутри 'meta': iprp -> ipco -> ispe</span>
+    <span class="token-comment">// 4. Извлечение ширины и высоты (uint32 Big-Endian)</span>
+}</code></pre>
+            </div>
+
+            <table class="walkthrough-table">
+                <thead>
+                    <tr>
+                        <th>Строки кода в avif.go</th>
+                        <th>Техническое назначение и нюансы спецификации</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="code-cell">
+image.RegisterFormat(<br>
+&nbsp;&nbsp;"avif",<br>
+&nbsp;&nbsp;"????ftyp",<br>
+&nbsp;&nbsp;decodeAVIFStub,<br>
+&nbsp;&nbsp;DecodeAVIFConfig<br>
+)
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Интеграция со стандартной библиотекой Go:</strong> Функция <code>image.RegisterFormat</code> регистрирует магический паттерн. Четыре знака вопроса <code>????</code> означают, что первые 4 байта (размер бокса) могут быть любыми, а следующие 4 байта обязаны быть ASCII-строкой <code>ftyp</code>. После этого вызов <code>image.DecodeConfig</code> автоматически умеет распознавать AVIF!
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell" id="isobmff-details">
+bSize := binary.BigEndian.<br>
+&nbsp;&nbsp;Uint32(header[0:4])<br>
+bType := string(header[4:8])
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Парсинг заголовка ISOBMFF Box:</strong> Первые 4 байта читаются как <code>uint32</code> в порядке Big-Endian. Если размер равен <code>1</code>, парсер считывает следующие 8 байт как 64-битный размер (LargeSize Box).
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">
+w := int(binary.BigEndian.<br>
+&nbsp;&nbsp;Uint32(ispeData[4:8]))<br>
+h := int(binary.BigEndian.<br>
+&nbsp;&nbsp;Uint32(ispeData[8:12]))
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Бокс ispe (Image Spatial Extents):</strong> Согласно спецификации ISO/IEC 23008-12, бокс <code>ispe</code> является <code>FullBox</code> (1 байт версии + 3 байта флагов = 4 байта), за которыми следуют 4 байта ширины (<code>image_width</code>) и 4 байта высоты (<code>image_height</code>). Мы извлекаем их напрямую, экономя время и процессорные такты.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- SECTION 6: SCRAPER -->
+            <h2 id="code-scraper">6. Разбор Кода: Парсинг HTML и Эвристическое Ранжирование (internal/scraper)</h2>
+            <p>
+                Модуль <code>internal/scraper</code> строит синтаксическое дерево HTML через <code>golang.org/x/net/html</code> и обходит его в глубину, группируя связанные теги в логические «слоты изображений».
+            </p>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Концепция: Логический Слот Изображения (Image Slot)</div>
+                <p>
+                    В современном вебе изображение редко представлено одним лишь изолированным тегом <code>&lt;img src="..."&gt;</code>. Чаще всего это составной компонент:
+                </p>
+                <div class="code-container" style="margin: 0.8rem 0;">
+                    <pre class="code-block" style="padding: 0.8rem;"><code>&lt;a href="/photos/full_original.jpg"&gt;
+    &lt;picture&gt;
+        &lt;source srcset="/photos/photo_1200.webp 1200w, /photos/photo_1600.webp 1600w"&gt;
+        &lt;img src="/photos/thumbnail_300.jpg" data-original="/photos/master.jpg"&gt;
+    &lt;/picture&gt;
+&lt;/a&gt;</code></pre>
+                </div>
+                <p>
+                    Если бы скрейпер бездумно парсил каждый тег, он скачал бы 5 копий одного и того же изображения разного разрешения. GleanoMess объединяет теги вокруг <code>&lt;img&gt;</code> в один <strong>Слот</strong> и выбирает строго <strong>одного лучшего кандидата</strong> по прозрачной шкале приоритетов.
+                </p>
+            </div>
+
+            <h3 id="candidate-ranking">Иерархия приоритетов (Priority Ranking)</h3>
+            <table class="walkthrough-table">
+                <thead>
+                    <tr>
+                        <th>Приоритет (Вес)</th>
+                        <th>Источник (CandidateSource)</th>
+                        <th>Обоснование эвристики</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>100 (Highest)</strong></td>
+                        <td><code>a[href]</code> (enclosing raster)</td>
+                        <td>Классический галерейный паттерн: ссылка кликабельна и ведет на несжатый оригинал.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>90</strong></td>
+                        <td><code>data-original*</code>, <code>data-full*</code></td>
+                        <td>Атрибуты JS-плагинов галерей (Lightbox, Fancybox), содержащие прямую ссылку на полноразмерный кадр.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>80</strong></td>
+                        <td><code>picture/source[srcset]</code></td>
+                        <td>Адаптивные источники тега <code>&lt;picture&gt;</code>. Выбирается вариант с максимальным <code>w</code> или <code>x</code>.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>70</strong></td>
+                        <td><code>img[srcset]</code></td>
+                        <td>Нативный адаптивный набор самого изображения.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>60</strong></td>
+                        <td><code>data-src*</code>, <code>data-lazy*</code></td>
+                        <td>Отложенная загрузка (Lazyload). Истинный URL, который JS подставляет вместо заглушки.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>50</strong></td>
+                        <td><code>img[src]</code></td>
+                        <td>Базовый fallback-источник изображения.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>40</strong></td>
+                        <td><code>a[href-standalone]</code></td>
+                        <td>Отдельные ссылки на растровые файлы на странице (не оборачивающие картинку).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>35</strong></td>
+                        <td><code>meta[og:image]</code>, <code>meta[twitter:image]</code></td>
+                        <td>Метаданные соцсетей (обычно высокое качество 1200x630).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>32</strong></td>
+                        <td><code>JSON-LD contentUrl / image</code></td>
+                        <td>Структурированные данные поисковой оптимизации (Schema.org).</td>
+                    </tr>
+                    <tr>
+                        <td><strong>20</strong></td>
+                        <td>CSS <code>background-image: url()</code></td>
+                        <td>Фоновые изображения из inline-стилей и тегов <code>&lt;style&gt;</code>.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="code-srcset">Парсинг srcset (internal/scraper/srcset.go)</h3>
+            <p>
+                Спецификация HTML5 для атрибута <code>srcset</code> разрешает перечисление через запятую: <code>small.jpg 400w, large.jpg 1600w</code>. Однако запятые могут встречаться внутри query-параметров URL или внутри data-URI.
+            </p>
+            <p>
+                Функция <code>splitSrcsetEntries()</code> реализует токенизатор, который проверяет наличие пробелов до и после запятой и вложенность скобок, предотвращая ложное разбиение адресов изображений.
+            </p>
+
+            <!-- SECTION 7: NAMING & DEDUP -->
+            <h2 id="code-naming">7. Разбор Кода: Именование, Кроссплатформенность и Дедупликация</h2>
+            
+            <div class="callout callout-warn">
+                <div class="callout-header">⚠️ Специфика Windows: Зарезервированные имена устройств (DOS Device Names)</div>
+                <p>
+                    В ОС Windows со времен MS-DOS существуют специальные зарезервированные имена системных устройств: <code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code>, <code>COM1</code>–<code>COM9</code>, <code>LPT1</code>–<code>LPT9</code>. Если программа попытается создать файл с именем <code>con.jpg</code> или <code>aux.png</code> на Windows, файловая система Windows вернет фатальную ошибку ввода-вывода или зависнет!
+                </p>
+                <p>
+                    Модуль <code>internal/naming/naming.go</code> отслеживает такие имена (регистронезависимо) и безопасно добавляет ведущий знак подчеркивания: <code>_CON.jpg</code>.
+                </p>
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/naming/naming.go — Потокобезопасный аллокатор коллизий</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">type</span> <span class="token-type">Allocator</span> <span class="token-keyword">struct</span> {
+    mu        sync.<span class="token-type">Mutex</span>
+    outputDir <span class="token-type">string</span>
+    allocated <span class="token-keyword">map</span>[<span class="token-type">string</span>]<span class="token-type">bool</span>
+}
+
+<span class="token-keyword">func</span> (a *<span class="token-type">Allocator</span>) <span class="token-func">Allocate</span>(baseFilename <span class="token-type">string</span>) <span class="token-type">string</span> {
+    a.mu.<span class="token-func">Lock</span>()
+    <span class="token-keyword">defer</span> a.mu.<span class="token-func">Unlock</span>()
+
+    <span class="token-comment">// Проверяет и карту в памяти, и физическое наличие файла на диске.</span>
+    <span class="token-comment">// Если image.jpg уже существует, возвращает image_2.jpg, затем image_3.jpg...</span>
+}</code></pre>
+            </div>
+
+            <h3 id="code-dedup">Потоковая дедупликация содержимого (internal/dedup/dedup.go)</h3>
+            <p>
+                На современных сайтах один и тот же логотип или баннер могут отдаваться по десяткам разных адресов (разные CDN-шарды, разные UTM-метки в query).
+            </p>
+            <p>
+                Во время скачивания тело ответа направляется в <code>io.MultiWriter(tempFile, hasher)</code>. В память загружается только текущий буфер чтения (32 КБ), а SHA-256 хеш считается синхронно на лету. Карта <code>ContentTracker</code> сохраняет соответствие <code>sha256 &rarr; savedFilename</code>. Если хеш совпал, временный файл немедленно удаляется, а в консоль выводится уведомление о дубликате.
+            </p>
+
+            <!-- SECTION 8: DOWNLOADER -->
+            <h2 id="code-downloader">8. Разбор Кода: Сеть, Ретраи и Worker Pool (internal/downloader)</h2>
+            <p>
+                Модуль <code>internal/downloader</code> обеспечивает высокую производительность и сетевую устойчивость скачивания.
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/downloader/client.go — HTTP-клиент с ретраями</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> <span class="token-func">shouldRetryStatus</span>(statusCode <span class="token-type">int</span>) <span class="token-type">bool</span> {
+    <span class="token-keyword">switch</span> statusCode {
+    <span class="token-keyword">case</span> <span class="token-num">408</span>, <span class="token-num">429</span>, <span class="token-num">500</span>, <span class="token-num">502</span>, <span class="token-num">503</span>, <span class="token-num">504</span>:
+        <span class="token-keyword">return</span> <span class="token-const">true</span>
+    <span class="token-keyword">default</span>:
+        <span class="token-keyword">return</span> <span class="token-const">false</span>
+    }
+}</code></pre>
+            </div>
+
+            <table class="walkthrough-table">
+                <thead>
+                    <tr>
+                        <th>Механизм в downloader</th>
+                        <th>Как реализован и почему это важно</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="code-cell">
+jar, _ := cookiejar.New(nil)<br>
+client := &amp;http.Client{Jar: jar}
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Поддержка сессионных Cookies:</strong> Многие веб-серверы требуют, чтобы при скачивании изображений клиент возвращал session-куки, установленные при открытии главной HTML-страницы. Встроенный <code>cookiejar</code> автоматически обрабатывает заголовки <code>Set-Cookie</code> и прикрепляет их к запросам картинок.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">
+req.Header.Set("Referer", h.pageURL)
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Защита от Hotlinking (Anti-Hotlink):</strong> Большинство серверов отклоняют прямые запросы к картинкам (HTTP 403 Forbidden), если заголовок <code>Referer</code> пуст или указывает на чужой домен. GleanoMess автоматически подставляет URL исходной страницы.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">
+parseRetryAfter(header)
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Уважение лимитов сервера (Rate Limiting):</strong> При статусе HTTP 429 Too Many Requests парсится заголовок <code>Retry-After</code> (секунды или HTTP-дата RFC 7231). Клиент засыпает именно на указанный сервером интервал, не спамя повторными запросами.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">
+io.LimitReader(resp.Body, maxBytes)
+                        </td>
+                        <td class="desc-cell">
+                            <strong>Защита от Zip-Bomb и бесконечных потоков:</strong> Лимит безопасности 500 МБ на один файл защищает жесткий диск от переполнения в случае ошибочных бесконечных стримов видеопотока или вредоносных ответов.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- SECTION 9: JUNIOR GUIDE -->
+            <h2 id="junior-guide">9. Учебное руководство для Go-разработчиков</h2>
+            <p>
+                Изучение реального производственного кода — лучший способ освоить идиоматический Go. Обратите внимание на архитектурные приемы, примененные в проекте GleanoMess:
+            </p>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Урок 1: Табличные тесты (Table-Driven Tests)</div>
+                <p>
+                    В Go стандартным способом написания тестов является структура «Срез тестовых сценариев» с вызовом <code>t.Run(tt.name, func(t *testing.T) { ... })</code>. В файле <code>internal/naming/naming_test.go</code> вы можете увидеть, как в одной компактной таблице проверяются десятки сложных граничных условий: от слэшей и двоеточий до имен устройств Windows.
+                </p>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Урок 2: Использование interface io.Reader и io.ReadSeeker</div>
+                <p>
+                    Функции пакетов не принимают путь к файлу в виде строки, если им нужны только байты. Они принимают интерфейс <code>io.Reader</code> или <code>io.ReadSeeker</code>. Это позволяет тестировать парсеры (например, AVIF или HTML) прямо в оперативной памяти с помощью <code>bytes.NewReader(syntheticBytes)</code> без необходимости создавать временные файлы на физическом диске.
+                </p>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Урок 3: Четкое разделение слоев абстракции</div>
+                <p>
+                    Обратите внимание: пакет <code>scraper</code> ничего не знает про HTTP-запросы и диск (он только анализирует HTML-ноды). Пакет <code>imageinfo</code> ничего не знает про HTML и URLs (он только читает байты заголовков). Пакет <code>naming</code> ничего не знает про сеть. Каждый пакет решает <strong>строго одну задачу</strong>, что делает кодовую базу устойчивой к регрессиям и легкой для модульного тестирования.
+                </p>
+            </div>
+
+            <h2 id="faq">10. Справка и Частые Вопросы (FAQ)</h2>
+            <div class="callout callout-term">
+                <div class="callout-header">Вопрос: Почему утилита не находит изображения на React / Vue SPA сайтах?</div>
+                <p>
+                    <strong>Ответ:</strong> GleanoMess v0.1 спроектирован как быстрый легковесный статический парсер (размер бинарника всего ~10 МБ, запуск за 5 миллисекунд). Если сайт рендерит разметку исключительно через выполнение клиентского JS-кода в браузере, исходный HTML от сервера содержит лишь пустой <code>&lt;div id="root"&gt;&lt;/div&gt;</code>. Для таких сайтов картинки будут найдены только если их адреса продублированы в <code>&lt;noscript&gt;</code>, OpenGraph тегах или блоках <code>JSON-LD</code>.
+                </p>
+            </div>
+
+        </main>
+
+        <!-- Table of Contents -->
+        <aside class="toc" id="toc">
+            <div class="toc-title">Содержание страницы</div>
+            <ul class="toc-list">
+                <li class="toc-item"><a href="#intro">1. Философия проекта</a></li>
+                <li class="toc-item"><a href="#pipeline">2. Data Pipeline</a></li>
+                <li class="toc-item"><a href="#scope-invariants">3. Scope и Инварианты</a></li>
+                <li class="toc-item"><a href="#glossary">4. Инженерный Глоссарий</a></li>
+                <li class="toc-item"><a href="#code-main">5. cmd/gleanomess/main.go</a></li>
+                <li class="toc-item h3"><a href="#normalize-args">Обход багов flag</a></li>
+                <li class="toc-item h3"><a href="#target-dir">Разрешение директории</a></li>
+                <li class="toc-item"><a href="#code-imageinfo">6. internal/imageinfo</a></li>
+                <li class="toc-item h3"><a href="#code-avif">Pure-Go AVIF парсер</a></li>
+                <li class="toc-item"><a href="#code-scraper">7. internal/scraper</a></li>
+                <li class="toc-item h3"><a href="#candidate-ranking">Ранжирование кандидатов</a></li>
+                <li class="toc-item h3"><a href="#code-srcset">Токенизатор srcset</a></li>
+                <li class="toc-item"><a href="#code-naming">8. internal/naming</a></li>
+                <li class="toc-item"><a href="#code-dedup">9. internal/dedup</a></li>
+                <li class="toc-item"><a href="#code-downloader">10. internal/downloader</a></li>
+                <li class="toc-item"><a href="#junior-guide">11. Учебник для Junior Go</a></li>
+                <li class="toc-item"><a href="#faq">12. FAQ</a></li>
+            </ul>
+        </aside>
+    </div>
+
+    <!-- Version Switch Modal -->
+    <div class="modal-backdrop" id="versionModal">
+        <div class="modal-box">
+            <h3 id="modalTitle">Информация о версии</h3>
+            <p id="modalBody">
+                Версия v0.2.0 находится в стадии планирования архитектуры. Запланированные нововведения:
+                рекурсивный обход страниц с лимитом глубины, парсинг внешних стилей CSS, экспорт отчетов в формате JSON.
+            </p>
+            <button class="modal-close-btn" onclick="closeModal()">Понятно</button>
+        </div>
+    </div>
+
+    <script>
+        function switchVersion(ver) {
+            if (ver === '0.1.1') {
+                window.location.href = 'v0.1.1.html';
+            } else if (ver === '0.1.0') {
+                window.location.href = 'v0.1.0.html';
+            }
+        }
+        function closeModal() {
+            document.getElementById('versionModal').style.display = 'none';
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            const elements = document.querySelectorAll('main h2, main h3, .callout, .walkthrough-table tr');
+            if (!query) {
+                elements.forEach(el => el.style.opacity = '1');
+                return;
+            }
+            elements.forEach(el => {
+                const text = el.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    el.style.opacity = '1';
+                } else {
+                    el.style.opacity = '0.35';
+                }
+            });
+        });
+
+        function copyCode(btn) {
+            const pre = btn.closest('.code-container').querySelector('pre');
+            navigator.clipboard.writeText(pre.innerText).then(() => {
+                const originalText = btn.innerText;
+                btn.innerText = 'Скопировано!';
+                btn.style.color = '#ffb84d';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style.color = '';
+                }, 1800);
+            });
+        }
+
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('main h2, main h3');
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                if (pageYOffset >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.toc-item a, .nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>

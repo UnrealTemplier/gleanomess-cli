@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GleanoMess v0.1.1 — Исчерпывающая Документация Разработчика</title>
+    <style>
+        :root {
+            --bg-canvas: #120e0c;
+            --bg-sidebar: #17120f;
+            --bg-card: #1c1613;
+            --bg-card-hover: #231c17;
+            --bg-code: #15100e;
+            --bg-code-header: #1f1814;
+            --bg-callout-term: #1f1811;
+            --bg-callout-tip: #1f1a10;
+            --bg-callout-deep: #241812;
+            --bg-callout-warn: #26140e;
+            
+            --border-subtle: #2d221a;
+            --border-medium: #423226;
+            --border-strong: #5e4635;
+            --border-focus: #f59e0b;
+
+            --text-main: #f0e6dc;
+            --text-muted: #ab9887;
+            --text-dim: #78685a;
+            
+            --amber-bright: #ffb84d;
+            --amber-main: #f59e0b;
+            --amber-deep: #d97706;
+            --amber-dark: #92400e;
+            --amber-glow: rgba(245, 158, 11, 0.22);
+            --amber-subtle: rgba(245, 158, 11, 0.08);
+
+            --accent-green: #a3b84d;
+            --accent-copper: #d97736;
+            --accent-gold: #eab308;
+            --accent-fire: #ea580c;
+
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --sidebar-width: 310px;
+            --toc-width: 250px;
+            --header-height: 60px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            font-size: 15px;
+            line-height: 1.68;
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        /* Subtle scanlines retro texture */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 14, 12, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+
+        a {
+            color: var(--amber-bright);
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(255, 184, 77, 0.4);
+            transition: all 0.2s ease;
+        }
+        a:hover {
+            color: #fff;
+            border-bottom-color: var(--amber-bright);
+            text-shadow: 0 0 8px var(--amber-glow);
+        }
+
+        header.top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: rgba(20, 16, 13, 0.94);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border-medium);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 1000;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            text-decoration: none;
+            border: none;
+        }
+        .brand-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--amber-main);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--amber-bright);
+            font-family: var(--font-mono);
+            font-weight: 900;
+            font-size: 1.1rem;
+            box-shadow: 0 0 10px var(--amber-glow);
+        }
+        .brand-text {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--amber-bright);
+            letter-spacing: -0.02em;
+        }
+        .brand-tag {
+            font-size: 0.72rem;
+            background: var(--amber-subtle);
+            color: var(--amber-bright);
+            padding: 2px 7px;
+            border-radius: 4px;
+            border: 1px solid var(--amber-dark);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .version-switcher {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            padding: 4px 10px;
+        }
+        .version-switcher label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+        .version-select {
+            background: transparent;
+            border: none;
+            color: var(--amber-bright);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+        .version-select option {
+            background: var(--bg-sidebar);
+            color: var(--text-main);
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-box input {
+            background: var(--bg-code);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            padding: 6px 12px 6px 32px;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            width: 220px;
+            transition: all 0.2s;
+            outline: none;
+        }
+        .search-box input:focus {
+            width: 280px;
+            border-color: var(--amber-main);
+            box-shadow: 0 0 8px var(--amber-glow);
+        }
+        .search-box svg {
+            position: absolute;
+            left: 10px;
+            width: 14px;
+            height: 14px;
+            fill: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .app-container {
+            display: flex;
+            margin-top: var(--header-height);
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        nav.sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-subtle);
+            position: fixed;
+            top: var(--header-height);
+            bottom: 0;
+            left: 0;
+            overflow-y: auto;
+            padding: 1.5rem 1rem 3rem 1.25rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-strong) transparent;
+        }
+        nav.sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        nav.sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 3px;
+        }
+
+        .nav-group {
+            margin-bottom: 1.6rem;
+        }
+        .nav-group-title {
+            font-family: var(--font-mono);
+            font-size: 0.73rem;
+            font-weight: 700;
+            color: var(--amber-main);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-group-title::before {
+            content: "//";
+            color: var(--text-dim);
+        }
+        .nav-links {
+            list-style: none;
+        }
+        .nav-links li {
+            margin-bottom: 0.2rem;
+        }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 10px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            border: none;
+            transition: all 0.15s ease;
+        }
+        .nav-link:hover {
+            color: var(--text-main);
+            background: var(--amber-subtle);
+            text-shadow: none;
+        }
+        .nav-link.active {
+            color: var(--amber-bright);
+            background: rgba(245, 158, 11, 0.14);
+            font-weight: 600;
+            border-left: 2px solid var(--amber-main);
+        }
+        .nav-badge {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: var(--border-subtle);
+            color: var(--text-dim);
+        }
+        .nav-badge.core {
+            background: var(--amber-dark);
+            color: #ffecd1;
+        }
+        .nav-badge.new {
+            background: #b45309;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        main.main-content {
+            margin-left: var(--sidebar-width);
+            margin-right: var(--toc-width);
+            padding: 2.5rem 3.5rem 5rem 3.5rem;
+            width: calc(100% - var(--sidebar-width) - var(--toc-width));
+            max-width: 1040px;
+        }
+
+        aside.toc {
+            width: var(--toc-width);
+            position: fixed;
+            top: var(--header-height);
+            right: 0;
+            bottom: 0;
+            padding: 2rem 1.25rem;
+            border-left: 1px solid var(--border-subtle);
+            overflow-y: auto;
+            font-size: 0.82rem;
+        }
+        .toc-title {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--amber-main);
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+        .toc-list {
+            list-style: none;
+        }
+        .toc-item {
+            margin-bottom: 0.45rem;
+            line-height: 1.4;
+        }
+        .toc-item a {
+            color: var(--text-muted);
+            border: none;
+            display: block;
+            padding: 2px 0;
+            transition: color 0.15s;
+        }
+        .toc-item a:hover {
+            color: var(--amber-bright);
+            text-shadow: none;
+        }
+        .toc-item.active a {
+            color: var(--amber-bright);
+            font-weight: 600;
+        }
+        .toc-item.h3 {
+            padding-left: 14px;
+            font-size: 0.78rem;
+        }
+
+        .breadcrumbs {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .breadcrumbs span {
+            color: var(--amber-main);
+        }
+
+        h1 {
+            font-size: 2.35rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.03em;
+            font-weight: 800;
+            border-bottom: 2px solid var(--border-medium);
+            padding-bottom: 0.6rem;
+        }
+        h1 span {
+            color: var(--amber-bright);
+        }
+
+        .lead-text {
+            font-size: 1.12rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            line-height: 1.7;
+        }
+
+        h2 {
+            font-size: 1.55rem;
+            font-family: var(--font-mono);
+            color: var(--amber-bright);
+            margin-top: 3.2rem;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 0.45rem;
+        }
+        h2::before {
+            content: "§";
+            color: var(--amber-dark);
+            font-weight: 400;
+        }
+
+        h3 {
+            font-size: 1.22rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+            margin-top: 2rem;
+            margin-bottom: 0.8rem;
+        }
+
+        h4 {
+            font-size: 1rem;
+            font-family: var(--font-mono);
+            color: var(--amber-main);
+            margin-top: 1.4rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        p, ul, ol {
+            margin-bottom: 1.25rem;
+            color: var(--text-main);
+        }
+        ul, ol {
+            padding-left: 1.4rem;
+        }
+        li {
+            margin-bottom: 0.45rem;
+        }
+
+        strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        code.inline-code {
+            background: #231c18;
+            color: var(--amber-bright);
+            font-family: var(--font-mono);
+            font-size: 0.86em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-medium);
+        }
+
+        .callout {
+            border-radius: 6px;
+            padding: 1.2rem 1.4rem;
+            margin: 1.75rem 0;
+            border-left: 4px solid;
+            position: relative;
+        }
+        .callout-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.92rem;
+            margin-bottom: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .callout-term {
+            background: var(--bg-callout-term);
+            border-left-color: var(--amber-main);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-term .callout-header {
+            color: var(--amber-bright);
+        }
+
+        .callout-deep {
+            background: var(--bg-callout-deep);
+            border-left-color: var(--accent-copper);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-deep .callout-header {
+            color: var(--accent-copper);
+        }
+
+        .callout-tip {
+            background: var(--bg-callout-tip);
+            border-left-color: var(--accent-gold);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-tip .callout-header {
+            color: var(--accent-gold);
+        }
+
+        .callout-warn {
+            background: var(--bg-callout-warn);
+            border-left-color: var(--accent-fire);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .callout-warn .callout-header {
+            color: var(--accent-fire);
+        }
+
+        .callout p:last-child {
+            margin-bottom: 0;
+        }
+
+        .code-container {
+            margin: 1.6rem 0;
+            background: var(--bg-code);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        .code-header {
+            background: var(--bg-code-header);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .code-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .code-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--border-strong);
+            display: inline-block;
+        }
+        .code-dot.amber {
+            background: var(--amber-main);
+            box-shadow: 0 0 6px var(--amber-main);
+        }
+        .copy-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            color: var(--text-muted);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            color: var(--amber-bright);
+            border-color: var(--amber-main);
+        }
+
+        pre.code-block {
+            padding: 1.1rem 1.3rem;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.86rem;
+            line-height: 1.6;
+            color: #e6dacd;
+            scrollbar-width: thin;
+        }
+
+        .token-keyword { color: #f59e0b; font-weight: bold; }
+        .token-func    { color: #ffc870; }
+        .token-string  { color: #d4a373; }
+        .token-comment { color: #7f6e61; font-style: italic; }
+        .token-type    { color: #e6b87d; font-weight: 600; }
+        .token-num     { color: #f39c12; }
+        .token-const   { color: #e07a5f; }
+
+        .walkthrough-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .walkthrough-table th, .walkthrough-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .walkthrough-table th {
+            background: var(--bg-card);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--amber-bright);
+            text-transform: uppercase;
+        }
+        .walkthrough-table tr:hover td {
+            background: rgba(245, 158, 11, 0.04);
+        }
+        .walkthrough-table td.code-cell {
+            font-family: var(--font-mono);
+            font-size: 0.83rem;
+            width: 44%;
+            color: #ffecd1;
+            background: #17120e;
+            vertical-align: top;
+            border-right: 1px solid var(--border-subtle);
+        }
+        .walkthrough-table td.desc-cell {
+            vertical-align: top;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .ascii-diagram {
+            background: #15100d;
+            border: 1px solid var(--amber-dark);
+            border-radius: 6px;
+            padding: 1.25rem;
+            margin: 1.75rem 0;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: var(--amber-bright);
+            overflow-x: auto;
+            white-space: pre;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .changelog-box {
+            background: #191410;
+            border: 1px solid var(--amber-main);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin: 1.75rem 0;
+        }
+        .changelog-box h3 {
+            margin-top: 0;
+            color: var(--amber-bright);
+        }
+
+        @media (max-width: 1200px) {
+            aside.toc {
+                display: none;
+            }
+            main.main-content {
+                margin-right: 0;
+                width: calc(100% - var(--sidebar-width));
+            }
+        }
+        @media (max-width: 800px) {
+            nav.sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                z-index: 1001;
+            }
+            nav.sidebar.open {
+                transform: translateX(0);
+            }
+            main.main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-header">
+        <a href="#intro" class="header-brand">
+            <div class="brand-logo">GM</div>
+            <div class="brand-text">GleanoMess</div>
+            <span class="brand-tag">v0.1.1 DOCS</span>
+        </a>
+
+        <div class="header-controls">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="searchInput" placeholder="Поиск по доке и коду (Ctrl+K)...">
+            </div>
+
+            <div class="version-switcher">
+                <label for="versionSelect">Ver:</label>
+                <select id="versionSelect" class="version-select" onchange="switchVersion(this.value)">
+                    <option value="0.1.1" selected>v0.1.1 (Актуальная)</option>
+                    <option value="0.1.0">v0.1.0 (Архив)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="nav-group">
+                <div class="nav-group-title">Введение и Концепция</div>
+                <ul class="nav-links">
+                    <li><a href="#intro" class="nav-link active">1. Философия проекта</a></li>
+                    <li><a href="#v011-whats-new" class="nav-link">Что нового в v0.1.1 <span class="nav-badge new">НОВОЕ</span></a></li>
+                    <li><a href="#pipeline" class="nav-link">2. Архитектурный конвейер</a></li>
+                    <li><a href="#scope-invariants" class="nav-link">3. 16 Непреложных Инвариантов</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Инженерный Глоссарий</div>
+                <ul class="nav-links">
+                    <li><a href="#glossary" class="nav-link">База терминов <span class="nav-badge core">16 ТЕМ</span></a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: CLI & Core</div>
+                <ul class="nav-links">
+                    <li><a href="#code-main" class="nav-link">cmd/gleanomess/main.go <span class="nav-badge">CLI</span></a></li>
+                    <li><a href="#normalize-args" class="nav-link">Обход ограничений flag</a></li>
+                    <li><a href="#target-dir" class="nav-link">Симлинки и resolveTargetDir</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Скрейпер и Слоты</div>
+                <ul class="nav-links">
+                    <li><a href="#code-scraper" class="nav-link">internal/scraper/scraper.go <span class="nav-badge new">SLOTS</span></a></li>
+                    <li><a href="#ranking-levels" class="nav-link">10 Уровней Ранжирования</a></li>
+                    <li><a href="#code-jsonld" class="nav-link">Семантика JSON-LD</a></li>
+                    <li><a href="#code-srcset" class="nav-link">internal/scraper/srcset.go</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Загрузчик и Сеть</div>
+                <ul class="nav-links">
+                    <li><a href="#code-downloader" class="nav-link">internal/downloader/downloader.go</a></li>
+                    <li><a href="#fallback-engine" class="nav-link">Цепочки Фолбэков (Fallback) <span class="nav-badge new">v0.1.1</span></a></li>
+                    <li><a href="#overflow-safety" class="nav-link">Truncation Safety (~500 MiB)</a></li>
+                    <li><a href="#code-client" class="nav-link">internal/downloader/client.go</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Дедупликация</div>
+                <ul class="nav-links">
+                    <li><a href="#code-dedup" class="nav-link">internal/dedup/dedup.go <span class="nav-badge new">ATOMIC</span></a></li>
+                    <li><a href="#atomic-finalize" class="nav-link">Анатомия ContentTracker.Finalize</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Разбор Кода: Изображения и Имена</div>
+                <ul class="nav-links">
+                    <li><a href="#code-imageinfo" class="nav-link">internal/imageinfo/imageinfo.go</a></li>
+                    <li><a href="#code-avif" class="nav-link">internal/imageinfo/avif.go <span class="nav-badge core">ISOBMFF</span></a></li>
+                    <li><a href="#code-naming" class="nav-link">internal/naming/naming.go</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Качество и CI</div>
+                <ul class="nav-links">
+                    <li><a href="#ci-matrix" class="nav-link">GitHub Actions CI (3 OS)</a></li>
+                    <li><a href="#junior-lessons" class="nav-link">Уроки для Go-Джуниоров</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+
+            <div class="breadcrumbs">
+                Документация <span>/</span> Версия v0.1.1 <span>/</span> Архитектура, Исходный Код и Инварианты
+            </div>
+
+            <h1 id="intro">GleanoMess v0.1.1: <span>Архитектура и Анализ Исходного Кода</span></h1>
+            <p class="lead-text">
+                Исчерпывающее техническое руководство, разбор исходного кода строка за строкой, инженерный глоссарий, архитектурный конвейер и практическое пособие уровня Senior &rarr; Junior для версии <strong>0.1.1</strong> утилиты <strong>GleanoMess</strong>.
+            </p>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Как устроена эта документация</div>
+                <p>
+                    Вся кодовая база GleanoMess написана на чистом, идиоматическом Go (без CGO, без тяжелых фреймворков, без скрытой магии). В каждом разделе вы найдете: 
+                    <code>строку исходного кода</code>, подробное объяснение, <strong>почему</strong> она написана именно так, и специальный блок с разбором базовых и продвинутых терминов компьютерных наук (Computer Science).
+                </p>
+            </div>
+
+            <!-- WHAT'S NEW IN V0.1.1 -->
+            <h2 id="v011-whats-new">Что нового в версии 0.1.1 (Архитектурные Улучшения)</h2>
+            <div class="changelog-box">
+                <h3>Ключевые инженерные изменения в v0.1.1:</h3>
+                <ul>
+                    <li><strong>Обновление Toolchain:</strong> Переход на <strong>Go 1.27.1</strong> как базовый компилятор в <code>go.mod</code>, CI и сборочных скриптах.</li>
+                    <li><strong>Лицензирование:</strong> Проект переведен на максимально permissive лицензию <strong>0BSD (BSD Zero Clause License)</strong>.</li>
+                    <li><strong>Кроссплатформенный GitHub Actions CI:</strong> Автоматизированное тестирование на трех операционных системах: Linux amd64 (с детектором гонок <code>-race</code>), Windows amd64 и macOS arm64.</li>
+                    <li><strong>Атомарная Дедупликация (Atomic Finalize):</strong> Решена проблема race condition между конкурентными горутинами при одновременном скачивании одинаковых файлов через метод <code>ContentTracker.Finalize</code> с автоматическим откатом транзакции (rollback).</li>
+                    <li><strong>Цепочки Фолбэков в Слотах (Fallback Chains):</strong> Кандидаты группируются в логические слоты (<code>Slot</code>). Ранжирование задает строгий порядок попыток: при падении приоритетного кандидата (HTTP 4xx/5xx, битый файл, отсечение по размеру) автоматически совершается попытка скачать следующий кандидат. При успехе дальнейшие загрузки для слота прекращаются.</li>
+                    <li><strong>Защита от усеченных потоков (Truncation Safety):</strong> Чтение через <code>io.LimitReader(body, maxBytes+1)</code> на границе ~500 MiB гарантирует выявление переполнения и удаление временного файла без сохранения битых картинок.</li>
+                    <li><strong>Гарантированное закрытие сокетов:</strong> Все пути владения <code>http.Response.Body</code> гарантированно закрываются, включая редиректы, постоянные ошибки и ретраи.</li>
+                </ul>
+            </div>
+
+            <!-- SECTION 1: PIPELINE -->
+            <h2 id="pipeline">1. Архитектурный конвейер (Data Pipeline v0.1.1)</h2>
+            <p>
+                Главная задача утилиты — взять один HTTP(S) URL веб-страницы, разобрать статический HTML без использования тяжелых браузерных движков, найти все растровые изображения, эвристически сформировать цепочки кандидатов от оригиналов к миниатюрам, параллельно скачать их без пережатия байт и аккуратно сохранить на диск с атомарной дедупликацией.
+            </p>
+
+            <div class="ascii-diagram">
++---------------------------------------------------------------------------------------------------------+
+|                                    GLEANOMESS DATA PIPELINE (v0.1.1)                                     |
++---------------------------------------------------------------------------------------------------------+
+
+  [ CLI Invocation ]  --> gleanomess https://example.com/gallery --limit-size 256 --workers 4
+         |
+         v
+  [ cmd/gleanomess ]  --> parse args, resolve executable directory, create folder: ./example.com/
+         |
+         +--> HTTPClient.FetchPage() (CookieJar, Referer, User-Agent, redirects bound <= 10)
+         |
+         v
+  [ internal/scraper ] --> golang.org/x/net/html DOM Walker
+         |
+         |=== [ LOGICAL IMAGE SLOTS (Slot with ranked Candidates) ] ===|
+         |---> Enclosing &lt;a href&gt; raster check (Priority 100 - Highest)
+         |---> data-original / data-full / data-large attributes (Priority 90)
+         |---> &lt;picture&gt;&lt;source srcset&gt; max width/density (Priority 80 / 78)
+         |---> &lt;img srcset&gt; max width/density (Priority 70 / 68)
+         |---> data-src / data-lazy attributes (Priority 60)
+         |---> &lt;img src&gt; fallback (Priority 50)
+         |---> Standalone &lt;a href&gt; (Priority 40)
+         |---> OpenGraph &lt;meta og:image&gt; / Twitter Cards (Priority 35)
+         |---> JSON-LD semantic image properties (Priority 32 / 30 / 28)
+         |---> CSS backgrounds inline &lt;style&gt; (Priority 20)
+         |
+         +--> Relative URL Resolution (against &lt;base href&gt; or page URL; strip '#...')
+         |
+         v
+  [ Slot Channel ]    --> Buffered channel (chan job) holding []*scraper.Slot
+         |
+         v
+  [ Worker Pool ]     --> Bounded N goroutines (default: 4) reading from channel
+         |
+         +--> [ For each Slot: execute Fallback Chain ]:
+                   |
+                   |=== [ Candidate Attempt Loop ] ===|
+                   +--> Check URL Deduplication (URLTracker)
+                   +--> HTTP GET with Retry (exponential backoff + jitter for 408, 429, 500, 502, 503, 504)
+                   +--> Stream response body to disk: ./.gleanomess-*.tmp
+                   |    via io.MultiWriter(tempFile, sha256Hasher)
+                   +--> Truncation Check: io.LimitReader(body, maxBytes+1)
+                   |    [Exceeded ~500 MiB? -> Delete temp file -> Mark Error -> Try next candidate]
+                   +--> Content Deduplication Fast-Check (ContentTracker: sha256 match)
+                   |    [Match found? -> Delete temp file -> Mark Duplicate -> Slot Complete!]
+                   +--> Format Sniffing &amp; Dimension Inspection (internal/imageinfo)
+                   |    Reads magic bytes &amp; box headers via DecodeConfig (NO FULL PIXEL BITMAP IN RAM)
+                   |    [Non-raster (SVG/ICO/HTML) or invalid? -> Delete temp file -> Try next candidate]
+                   +--> Size Filter Enforcement: max(width, height) >= limitSize
+                   |    [Condition failed? -> Delete temp file -> Try next candidate in slot]
+                   +--> Atomic Finalize &amp; Save (internal/dedup):
+                   |    Lock ContentTracker Mutex -> Check hash again
+                   |    Allocate unique safe filename (_2, _3) -> Atomic os.Rename(.tmp, final)
+                   |    [Success -> Slot Complete! Break fallback chain immediately]
+         |
+         v
+  [ Summary Output ]  --> Compact / Verbose execution statistics. Exit code: 0
+            </div>
+
+            <!-- SECTION 2: 16 INVARIANTS -->
+            <h2 id="scope-invariants">2. 16 Непреложных Инженерных Инвариантов GleanoMess</h2>
+            <div class="callout callout-warn">
+                <div class="callout-header">⚠️ Инварианты Архитектуры (Invariants - DO NOT VIOLATE)</div>
+                <ol>
+                    <li><strong>Никакого пережатия (Zero Recompression):</strong> Байт в байт сохранять исходный поток данных, полученный по HTTP. Запрещено модифицировать или перекодировать пиксели.</li>
+                    <li><strong>Не доверять расширениям файлов:</strong> Расширение в URL может быть ложным. Формат валидируется строго по сигнатурам (Magic Bytes) и декодерам заголовков; расширение — лишь запасной вариант.</li>
+                    <li><strong>Разрешение относительных ссылок против базового URL:</strong> Относительные пути разрешаются относительно финального URL страницы или тега <code>&lt;base href&gt;</code> с обязательным отсечением фрагментов (<code>#...</code>).</li>
+                    <li><strong>Фильтр размера — это <code>max(width, height) >= N</code>:</strong> Если максимальная сторона изображения не меньше N, файл принимается.</li>
+                    <li><strong>Никакого полного декодирования в RAM:</strong> Для проверки геометрии используется <code>image.DecodeConfig</code> и разбор боксов заголовков, чтобы не расходовать сотни мегабайт на пиксельные карты.</li>
+                    <li><strong>Запись во временные файлы (.tmp) перед финализацией:</strong> Ни один поврежденный или отсеянный файл не должен получить финальное имя на диске.</li>
+                    <li><strong>Потокобезопасная дедупликация URL:</strong> Каждый нормализованный URL запрашивается по сети не более 1 раза.</li>
+                    <li><strong>Атомарная дедупликация контента с финализацией:</strong> Проверка хеша, выделение имени файла и переименование производятся атомарно в критической секции. При сбое сохранения состояние трекера откатывается.</li>
+                    <li><strong>Ранжированные кандидаты образуют цепочку фолбэков (Fallback Chain):</strong> Ранжирование задает строгий порядок попыток в слоте. Если приоритетный кандидат упал или не прошел фильтр, пробуется следующий кандидат.</li>
+                    <li><strong>Никаких лишних загрузок после успеха:</strong> Как только кандидат в слоте успешно сохранен или опознан как дубликат, обработка слота немедленно завершается.</li>
+                    <li><strong>JSON-LD извлекает только семантические поля изображений:</strong> Извлекаются только свойства <code>image</code>, <code>contentUrl</code>, <code>thumbnailUrl</code>, <code>ImageObject</code>, <code>@graph</code>. Произвольные строки (заголовки, имена, авторы) игнорируются.</li>
+                    <li><strong>Никакого тихого принятия усеченных файлов:</strong> При превышении лимита размера (~500 MiB) загрузка прерывается с ошибкой, временный файл удаляется и не финализируется.</li>
+                    <li><strong>Гарантированное закрытие тел HTTP-ответов:</strong> Каждый <code>Response.Body</code> гарантированно закрывается на всех путях выполнения, включая ошибки 4xx, редиректы и повторные попытки.</li>
+                    <li><strong>Изоляция сбоев:</strong> Ошибка на одном изображении инкрементирует счетчик ошибок, но не прерывает работу со всей страницей.</li>
+                    <li><strong>Каталог по умолчанию — рядом с бинарником:</strong> Папка создается по пути <code>filepath.Dir(exePath)/&lt;host&gt;/</code> с разрешением симлинков.</li>
+                    <li><strong>Никакого несанкционированного расширения Scope:</strong> Не превращать утилиту в браузерный движок или распределенный краулер.</li>
+                </ol>
+            </div>
+
+            <!-- SECTION 3: GLOSSARY -->
+            <h2 id="glossary">3. Инженерный Глоссарий (База Терминов)</h2>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: DOM (Document Object Model) и древовидный обход через golang.org/x/net/html</div>
+                <p>
+                    <strong>DOM (Объектная Модель Документа)</strong> — это представление структуры HTML-документа в памяти в виде графа/дерева. Каждый узел (<code>html.Node</code>) содержит ссылки на <code>FirstChild</code>, <code>NextSibling</code> и атрибуты. В отличие от регулярных выражений, DOM-парсер сохраняет иерархический контекст: например, мы знаем, что тег <code>&lt;img&gt;</code> находится внутри ссылки <code>&lt;a href&gt;</code> или контейнера <code>&lt;picture&gt;</code>.
+                </p>
+            </div>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Deep Dive: Атомарная Финализация (Atomic Check-and-Save) и TOCTOU Race Condition</div>
+                <p>
+                    В многопоточном приложении возникает классическая проблема <strong>TOCTOU (Time-of-Check to Time-of-Use)</strong>: если горутина A проверяет «файл с таким SHA-256 уже есть?» и получает «нет», а в этот же момент горутина B скачивает то же самое изображение из другого URL, обе горутины решат сохранить файл и создадут дубликаты <code>pic.jpg</code> и <code>pic_2.jpg</code> на диске.
+                </p>
+                <p>
+                    В v0.1.1 метод <code>ContentTracker.Finalize</code> выполняет двойную проверку внутри мьютекса (Double-Checked Locking). Проверка хеша, выделение имени файла и переименование <code>os.Rename</code> происходят в атомарной критической секции. Если функция сохранения возвращает ошибку, хеш не регистрируется (транзакционный откат).
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Magic Bytes (Сигнатуры Файлов) и многоуровневая валидация</div>
+                <p>
+                    <strong>Magic Bytes (Магические Байты)</strong> — уникальная последовательность байт в начале файла, стандартизированная спецификацией формата для его мгновенной идентификации операционными системами независимо от расширения файла:
+                </p>
+                <ul>
+                    <li><strong>PNG:</strong> 8 байт: <code>89 50 4E 47 0D 0A 1A 0A</code>.</li>
+                    <li><strong>JPEG:</strong> <code>0xFF 0xD8 0xFF</code> (маркер SOI).</li>
+                    <li><strong>GIF:</strong> ASCII-строка <code>GIF87a</code> или <code>GIF89a</code>.</li>
+                    <li><strong>WebP:</strong> Контейнер RIFF: <code>RIFF....WEBP</code>.</li>
+                    <li><strong>BMP:</strong> Символы <code>BM</code> (<code>0x42 0x4D</code>).</li>
+                    <li><strong>TIFF:</strong> <code>II*\x00</code> (Little-Endian) или <code>MM\x00*</code> (Big-Endian).</li>
+                    <li><strong>AVIF:</strong> Бокс <code>ftyp</code> с совместимым брендом <code>avif</code>.</li>
+                </ul>
+            </div>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Deep Dive: Формат ISOBMFF и структура боксов AVIF (Box/Atom)</div>
+                <p>
+                    <strong>AVIF</strong> базируется на стандарте <strong>ISOBMFF (ISO/IEC 14496-12)</strong>. Файл состоит из иерархических блоков (<strong>Box</strong>). Каждый бокс имеет 4 байта длины (Big-Endian uint32) и 4 байта FourCC типа (например, <code>ftyp</code>, <code>meta</code>, <code>ispe</code>).
+                </p>
+                <p>
+                    Размеры картинки хранятся в боксе <code>ispe</code> (Image Spatial Extents Property) внутри <code>meta &rarr; iprp &rarr; ipco &rarr; ispe</code> в виде двух 32-битных чисел ширины и высоты. Парсер GleanoMess извлекает эти размеры за доли миллисекунды из первых нескольких килобайт файла без декодирования AV1-видеопотока.
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Bounded Worker Pool (Ограниченный пул воркеров)</div>
+                <p>
+                    Паттерн, предотвращающий неконтролируемое потребление ресурсов. Если страница содержит 500 картинок, запуск 500 одновременных горутин приведет к исчерпанию файловых дескрипторов и блокировке по IP со стороны веб-сервера. GleanoMess запускает фиксированное число горутин (по умолчанию 4, флаг <code>--workers N</code>), читающих задачи из одного канала.
+                </p>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Совет для Go-джуниора: Graceful Shutdown и context.Context</div>
+                <p>
+                    Связка <code>signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)</code> переводит контекст в состояние отмены при нажатии Ctrl+C. Все HTTP-запросы мгновенно прерываются, воркеры выходят из цикла, а отложенные <code>defer os.Remove(tmpPath)</code> стирают временные файлы, не оставляя мусора на диске.
+                </p>
+            </div>
+
+            <div class="callout callout-term">
+                <div class="callout-header">📖 Термин: Exponential Backoff и Jitter</div>
+                <p>
+                    При получении временных ошибок (HTTP 429, 503, 502, 504) задержка между повторными попытками увеличивается экспоненциально: <code>Base * 2^attempt</code>. Случайный <strong>Jitter</strong> (0–100 мс) предотвращает проблему «громоподобного стада» (Thundering Herd), когда сотни клиентов синхронно обращаются к серверу в одну и ту же миллисекунду.
+                </p>
+            </div>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Deep Dive: Атомарный Rename в POSIX-файловых системах</div>
+                <p>
+                    Скачивание выполняется в файл <code>.gleanomess-*.tmp</code> в целевом каталоге. Системный вызов <code>rename(2)</code> атомарно подменяет указатель в каталоге: сторонний процесс никогда не увидит недокачанный или усеченный файл — на диске появляется только полностью проверенное изображение.
+                </p>
+            </div>
+
+            <!-- SECTION 4: CODE WALKTHROUGH MAIN -->
+            <h2 id="code-main">4. Разбор Кода: Точка входа (cmd/gleanomess/main.go)</h2>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> cmd/gleanomess/main.go — Инициализация и флаги</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">const</span> version = <span class="token-string">"0.1.1"</span>
+
+<span class="token-keyword">func</span> <span class="token-func">run</span>(args []<span class="token-type">string</span>) <span class="token-type">int</span> {
+    fs := flag.<span class="token-func">NewFlagSet</span>(<span class="token-string">"gleanomess"</span>, flag.ContinueOnError)
+
+    <span class="token-keyword">var</span> (
+        limitSize <span class="token-type">int</span>
+        outputDir <span class="token-type">string</span>
+        workers   <span class="token-type">int</span>
+        verbose   <span class="token-type">bool</span>
+        showVer   <span class="token-type">bool</span>
+    )
+
+    fs.<span class="token-func">IntVar</span>(&amp;limitSize, <span class="token-string">"limit-size"</span>, <span class="token-num">0</span>, <span class="token-string">"filter images with max(width, height) &gt;= N"</span>)
+    fs.<span class="token-func">StringVar</span>(&amp;outputDir, <span class="token-string">"output-dir"</span>, <span class="token-string">""</span>, <span class="token-string">"override base output directory"</span>)
+    fs.<span class="token-func">IntVar</span>(&amp;workers, <span class="token-string">"workers"</span>, <span class="token-num">4</span>, <span class="token-string">"number of concurrent download workers"</span>)
+    fs.<span class="token-func">BoolVar</span>(&amp;verbose, <span class="token-string">"verbose"</span>, <span class="token-const">false</span>, <span class="token-string">"enable detailed verbose output"</span>)
+    fs.<span class="token-func">BoolVar</span>(&amp;verbose, <span class="token-string">"v"</span>, <span class="token-const">false</span>, <span class="token-string">"enable detailed verbose output (shorthand)"</span>)
+    fs.<span class="token-func">BoolVar</span>(&amp;showVer, <span class="token-string">"version"</span>, <span class="token-const">false</span>, <span class="token-string">"show program version and exit"</span>)
+    <span class="token-comment">// ...</span>
+}</code></pre>
+            </div>
+
+            <table class="walkthrough-table">
+                <thead>
+                    <tr>
+                        <th>Блок Кода</th>
+                        <th>Что конкретно делает и почему так написано</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="code-cell">const version = "0.1.1"</td>
+                        <td class="desc-cell">Единый источник истины (Single Source of Truth) для версии приложения в CLI.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">fs := flag.NewFlagSet("gleanomess", flag.ContinueOnError)</td>
+                        <td class="desc-cell">Создание изолированного набора флагов. Использование <code>ContinueOnError</code> позволяет перехватывать <code>flag.ErrHelp</code> и возвращать код 0 вместо автоматического аварийного <code>os.Exit(2)</code>.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">normalizeArgs(args)</td>
+                        <td class="desc-cell">Реорганизация аргументов CLI: стандартный пакет <code>flag</code> в Go прекращает чтение флагов, как только встречает позиционный аргумент (URL). Функция переставляет флаги вперед, позволяя синтаксис <code>gleanomess URL --flag</code> и <code>gleanomess --flag URL</code>.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="target-dir">Вычисление Каталога Сохранения: resolveTargetDir</h3>
+            <p>
+                Каталог для сохранения картинок по умолчанию вычисляется рядом с физическим бинарником, с предварительным удалением префикса <code>www.</code> и санитизацией спецсимволов имени хоста:
+            </p>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> cmd/gleanomess/main.go — resolveTargetDir</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> <span class="token-func">resolveTargetDir</span>(customBaseDir <span class="token-type">string</span>, u *url.URL) (<span class="token-type">string</span>, <span class="token-type">error</span>) {
+    host := u.<span class="token-func">Hostname</span>()
+    <span class="token-keyword">if</span> strings.<span class="token-func">HasPrefix</span>(strings.<span class="token-func">ToLower</span>(host), <span class="token-string">"www."</span>) {
+        host = host[<span class="token-num">4</span>:]
+    }
+    sanitizedHost := invalidHostCharsRegex.<span class="token-func">ReplaceAllString</span>(host, <span class="token-string">"_"</span>)
+    <span class="token-comment">// Вычисляем путь к бинарнику с разрешением симлинков</span>
+    exePath, _ := os.<span class="token-func">Executable</span>()
+    realPath, err := filepath.<span class="token-func">EvalSymlinks</span>(exePath)
+    <span class="token-keyword">if</span> err == <span class="token-const">nil</span> { exePath = realPath }
+    <span class="token-keyword">return</span> filepath.<span class="token-func">Join</span>(filepath.<span class="token-func">Dir</span>(exePath), sanitizedHost), <span class="token-const">nil</span>
+}</code></pre>
+            </div>
+
+            <!-- SECTION 5: SCRAPER AND SLOTS -->
+            <h2 id="code-scraper">5. Разбор Кода: Скрейпер и Логические Слоты (internal/scraper)</h2>
+            <p>
+                В версии 0.1.1 скрейпер группирует найденные кандидаты в <strong>логические слоты (Slot)</strong>. Слот соответствует одному визуальному месту под изображение на странице и содержит упорядоченный список URL с приоритетами.
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/scraper/scraper.go — Структура Slot и Candidate</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">type</span> Candidate <span class="token-keyword">struct</span> {
+    RawURL      <span class="token-type">string</span>
+    ResolvedURL *url.URL
+    Source      CandidateSource
+    Priority    <span class="token-type">int</span>
+    Descriptor  <span class="token-type">string</span> <span class="token-comment">// "1600w" или "2x"</span>
+}
+
+<span class="token-keyword">type</span> Slot <span class="token-keyword">struct</span> {
+    Candidates []*Candidate
+}
+
+<span class="token-keyword">func</span> (s *Slot) <span class="token-func">Best</span>() *Candidate {
+    <span class="token-keyword">if</span> <span class="token-func">len</span>(s.Candidates) == <span class="token-num">0</span> { <span class="token-keyword">return</span> <span class="token-const">nil</span> }
+    <span class="token-keyword">return</span> s.Candidates[<span class="token-num">0</span>]
+}</code></pre>
+            </div>
+
+            <h3 id="ranking-levels">10 Уровней Ранжирования Кандидатов</h3>
+            <table class="walkthrough-table">
+                <thead>
+                    <tr>
+                        <th>Приоритет</th>
+                        <th>Источник (Source)</th>
+                        <th>Описание логики</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="code-cell">100 (Высший)</td>
+                        <td class="desc-cell"><code>&lt;a href&gt;</code> вокруг <code>&lt;img&gt;</code></td>
+                        <td class="desc-cell">Ссылка на полноразмерный растровый оригинал, оборачивающая превью.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">90</td>
+                        <td class="desc-cell"><code>data-original*</code> / <code>data-full*</code></td>
+                        <td class="desc-cell">HTML5 атрибуты для вызова лайтбоксов с полноразмерным фото.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">80 / 78</td>
+                        <td class="desc-cell"><code>&lt;picture&gt;&lt;source&gt;</code></td>
+                        <td class="desc-cell">Элементы адаптивной графики, отсортированные по ширине или плотности.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">70 / 68</td>
+                        <td class="desc-cell"><code>img[srcset]</code> / <code>data-srcset</code></td>
+                        <td class="desc-cell">Адаптивный набор вариантов изображения.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">60</td>
+                        <td class="desc-cell"><code>data-src</code> / <code>data-lazy*</code></td>
+                        <td class="desc-cell">Атрибуты отложенной загрузки (Lazy Loading).</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">50</td>
+                        <td class="desc-cell"><code>img[src]</code></td>
+                        <td class="desc-cell">Базовый атрибут <code>src</code> тега изображения.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">40</td>
+                        <td class="desc-cell">Одиночный <code>&lt;a href&gt;</code></td>
+                        <td class="desc-cell">Прямая ссылка на растровый файл в теле документа без вложенного <code>&lt;img&gt;</code>.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">35</td>
+                        <td class="desc-cell"><code>og:image</code> / <code>twitter:image</code></td>
+                        <td class="desc-cell">Метаданные OpenGraph и Twitter Cards для шеринга в соцсетях.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">32 / 30 / 28</td>
+                        <td class="desc-cell">JSON-LD схемы</td>
+                        <td class="desc-cell">Валидированные поля <code>image</code>, <code>contentUrl</code>, <code>thumbnailUrl</code>, <code>ImageObject</code>.</td>
+                    </tr>
+                    <tr>
+                        <td class="code-cell">20</td>
+                        <td class="desc-cell">CSS Backgrounds</td>
+                        <td class="desc-cell">Фоновые картинки из inline <code>style="url(...)"</code> и тегов <code>&lt;style&gt;</code>.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="code-jsonld">Семантическая Фильтрация JSON-LD</h3>
+            <p>
+                Согласно Инварианту 11, из JSON-LD разрешено извлекать <strong>только явно предназначенные для картинок поля</strong>. Произвольные текстовые строки (например, <code>@context</code>, <code>headline</code>, <code>author</code>, <code>name</code>) никогда не должны интерпретироваться как ссылки на изображения:
+            </p>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/scraper/scraper.go — Рекурсивный обход JSON-LD</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> <span class="token-func">extractJSONLDSlots</span>(v <span class="token-type">any</span>, baseURL *url.URL, addSlot <span class="token-keyword">func</span>(*Slot)) {
+    <span class="token-keyword">switch</span> val := v.(<span class="token-keyword">type</span>) {
+    <span class="token-keyword">case</span> <span class="token-type">map[string]any</span>:
+        <span class="token-comment">// 1. Рекурсия в @graph</span>
+        <span class="token-keyword">if</span> graph, ok := val[<span class="token-string">"@graph"</span>]; ok { <span class="token-func">extractJSONLDSlots</span>(graph, baseURL, addSlot) }
+        <span class="token-comment">// 2. Только явные семантические поля картинок</span>
+        <span class="token-keyword">if</span> img, ok := val[<span class="token-string">"image"</span>]; ok { <span class="token-func">extractJSONLDImageField</span>(img, baseURL, <span class="token-num">30</span>, addSlot) }
+        <span class="token-keyword">if</span> contentURL, ok := val[<span class="token-string">"contentUrl"</span>]; ok { <span class="token-func">extractJSONLDImageField</span>(contentURL, baseURL, <span class="token-num">32</span>, addSlot) }
+        <span class="token-keyword">if</span> thumbURL, ok := val[<span class="token-string">"thumbnailUrl"</span>]; ok { <span class="token-func">extractJSONLDImageField</span>(thumbURL, baseURL, <span class="token-num">28</span>, addSlot) }
+        <span class="token-comment">// 3. Если тип объекта - ImageObject, проверяем url</span>
+        <span class="token-keyword">if</span> <span class="token-func">isImageObjectType</span>(val[<span class="token-string">"@type"</span>]) {
+            <span class="token-keyword">if</span> u, ok := val[<span class="token-string">"url"</span>]; ok { <span class="token-func">extractJSONLDImageField</span>(u, baseURL, <span class="token-num">32</span>, addSlot) }
+        }
+        <span class="token-comment">// 4. Рекурсия ТОЛЬКО во вложенные объекты или массивы (строки игнорируются!)</span>
+        <span class="token-keyword">for</span> k, child := <span class="token-keyword">range</span> val {
+            <span class="token-keyword">switch</span> child.(<span class="token-keyword">type</span>) {
+            <span class="token-keyword">case</span> <span class="token-type">map[string]any</span>, []<span class="token-type">any</span>:
+                <span class="token-func">extractJSONLDSlots</span>(child, baseURL, addSlot)
+            }
+        }
+    }
+}</code></pre>
+            </div>
+
+            <!-- SECTION 6: DOWNLOADER AND FALLBACK -->
+            <h2 id="code-downloader">6. Разбор Кода: Загрузчик и Цепочки Фолбэков (internal/downloader)</h2>
+            <p>
+                Центральным новшеством v0.1.1 стала функция <code>processSlot</code>, реализующая отказоустойчивое исполнение цепочки фолбэков для каждого визуального слота.
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/downloader/downloader.go — processSlot Fallback Chain</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> (d *Downloader) <span class="token-func">processSlot</span>(ctx context.Context, slot *scraper.Slot, index, total <span class="token-type">int</span>) *ItemResult {
+    <span class="token-keyword">var</span> lastRes *ItemResult
+
+    <span class="token-keyword">for</span> candIdx, cand := <span class="token-keyword">range</span> slot.Candidates {
+        <span class="token-comment">// 1. Попытка обработки очередного кандидата по приоритету</span>
+        res := d.<span class="token-func">processCandidate</span>(ctx, cand, index, total)
+        lastRes = res
+
+        <span class="token-comment">// 2. Если успешно скачан — СЛОТ ЗАВЕРШЕН, низшие кандидаты НЕ скачиваются!</span>
+        <span class="token-keyword">if</span> res.Status == StatusDownloaded {
+            <span class="token-keyword">return</span> res
+        }
+
+        <span class="token-comment">// 3. Если этот файл или URL уже скачан ранее — слот удовлетворен</span>
+        <span class="token-keyword">if</span> res.Status == StatusDuplicate {
+            <span class="token-keyword">return</span> res
+        }
+
+        <span class="token-comment">// 4. Ошибка или отсев по размеру: если есть следующий кандидат — ФОЛБЭК!</span>
+        <span class="token-keyword">if</span> candIdx+<span class="token-num">1</span> &lt; <span class="token-func">len</span>(slot.Candidates) &amp;&amp; d.options.Verbose {
+            d.<span class="token-func">reportFallback</span>(index, total, cand, res, slot.Candidates[candIdx+<span class="token-num">1</span>])
+        }
+    }
+
+    <span class="token-keyword">return</span> lastRes
+}</code></pre>
+            </div>
+
+            <h3 id="overflow-safety">Защита от Переполнения и Усеченных Загрузок (Truncation Safety)</h3>
+            <p>
+                Согласно Инварианту 12, нельзя просто вызывать <code>io.LimitReader(body, maxBytes)</code>: если сервер передаст файл размером 600 МБ, такой ридер просто молча обрежет его на 500 МБ и создаст битую недокачанную картинку. В GleanoMess v0.1.1 считывается <code>maxBytes + 1</code>:
+            </p>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/downloader/downloader.go — Overflow Detection</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code>limitedReader := io.<span class="token-func">LimitReader</span>(reqResult.Response.Body, maxBytes+<span class="token-num">1</span>)
+n, copyErr := io.<span class="token-func">Copy</span>(writer, limitedReader)
+_ = tmpFile.<span class="token-func">Close</span>()
+
+<span class="token-keyword">if</span> n &gt; maxBytes {
+    <span class="token-comment">// Размер превысил безопасный лимит! Отбрасываем файл.</span>
+    res.Status = StatusError
+    res.Error = fmt.<span class="token-func">Errorf</span>(<span class="token-string">"image exceeds internal download size limit"</span>)
+    <span class="token-keyword">return</span> res
+}</code></pre>
+            </div>
+
+            <!-- SECTION 7: ATOMIC DEDUP -->
+            <h2 id="code-dedup">7. Разбор Кода: Атомарная Дедупликация (internal/dedup)</h2>
+            <p>
+                Пакет <code>internal/dedup</code> обеспечивает потокобезопасную дедупликацию нормализованных URL и атомарную дедупликацию файлов по хешу SHA-256.
+            </p>
+
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/dedup/dedup.go — Метод Finalize с защитой от гонок</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">func</span> (c *ContentTracker) <span class="token-func">Finalize</span>(hashHex <span class="token-type">string</span>, saveFn <span class="token-keyword">func</span>() (<span class="token-type">string</span>, <span class="token-type">error</span>)) (<span class="token-type">string</span>, <span class="token-type">bool</span>, <span class="token-type">error</span>) {
+    c.mu.<span class="token-func">Lock</span>()
+    <span class="token-keyword">defer</span> c.mu.<span class="token-func">Unlock</span>()
+
+    <span class="token-comment">// 1. Повторная проверка внутри мьютекса (Double-Checked Locking)</span>
+    <span class="token-keyword">if</span> existing, ok := c.hashes[hashHex]; ok {
+        <span class="token-keyword">return</span> existing, <span class="token-const">true</span>, <span class="token-const">nil</span>
+    }
+
+    <span class="token-comment">// 2. Вызов функции сохранения (выделение уникального имени и atomic rename)</span>
+    finalFilename, err := <span class="token-func">saveFn</span>()
+    <span class="token-keyword">if</span> err != <span class="token-const">nil</span> {
+        <span class="token-comment">// Транзакционный откат: хеш НЕ сохраняется в трекере!</span>
+        <span class="token-keyword">return</span> <span class="token-string">""</span>, <span class="token-const">false</span>, err
+    }
+
+    <span class="token-comment">// 3. Успешная регистрация</span>
+    c.hashes[hashHex] = finalFilename
+    <span class="token-keyword">return</span> finalFilename, <span class="token-const">false</span>, <span class="token-const">nil</span>
+}</code></pre>
+            </div>
+
+            <!-- SECTION 8: IMAGEINFO AND NAMING -->
+            <h2 id="code-imageinfo">8. Разбор Кода: Форматы, Размеры и Имена Файлов</h2>
+            <p>
+                Пакет <code>internal/imageinfo</code> валидирует растровые форматы и считывает геометрию без загрузки тяжелых пиксельных матриц в RAM.
+            </p>
+
+            <div class="callout callout-deep">
+                <div class="callout-header">⚙️ Почему SVG, ICO и HTML отсекаются немедленно?</div>
+                <p>
+                    В соответствии с Инвариантом 2 и целями проекта GleanoMess (сохранение только растровых изображений), векторный формат <strong>SVG</strong> (XML-код) и значки <strong>ICO</strong> (содержащие мультииконки) отсекаются еще до вызова декодеров. Ответы с MIME-типом <code>text/html</code> (часто возвращаемые при 404/блоках вместо картинок) также мгновенно бракуются.
+                </p>
+            </div>
+
+            <h3 id="code-naming">Санитизация Имен Файлов и Windows Reserved Devices</h3>
+            <p>
+                Файл <code>internal/naming/naming.go</code> очищает имена файлов от управляющих и запрещенных символов (<code>\ / : * ? " &lt; &gt; |</code>), а также защищает от сбоев на платформе Windows при встрече зарезервированных имен устройств:
+            </p>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> internal/naming/naming.go — Windows Reserved Device Guard</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code><span class="token-keyword">var</span> windowsReservedNames = <span class="token-keyword">map</span>[<span class="token-type">string</span>]<span class="token-type">bool</span>{
+    <span class="token-string">"CON"</span>: <span class="token-const">true</span>, <span class="token-string">"PRN"</span>: <span class="token-const">true</span>, <span class="token-string">"AUX"</span>: <span class="token-const">true</span>, <span class="token-string">"NUL"</span>: <span class="token-const">true</span>,
+    <span class="token-string">"COM1"</span>: <span class="token-const">true</span>, <span class="token-string">"COM2"</span>: <span class="token-const">true</span>, <span class="token-string">"COM3"</span>: <span class="token-const">true</span>, <span class="token-string">"COM4"</span>: <span class="token-const">true</span>,
+    <span class="token-string">"LPT1"</span>: <span class="token-const">true</span>, <span class="token-string">"LPT2"</span>: <span class="token-const">true</span>, <span class="token-string">"LPT3"</span>: <span class="token-const">true</span>, <span class="token-string">"LPT4"</span>: <span class="token-const">true</span>,
+}
+
+<span class="token-keyword">func</span> <span class="token-func">SanitizeFilename</span>(name <span class="token-type">string</span>) <span class="token-type">string</span> {
+    base := filepath.<span class="token-func">Base</span>(filepath.<span class="token-func">ToSlash</span>(name))
+    base = invalidCharsRegex.<span class="token-func">ReplaceAllString</span>(base, <span class="token-string">"_"</span>)
+    cleanName := strings.<span class="token-func">TrimSuffix</span>(base, filepath.<span class="token-func">Ext</span>(base))
+    <span class="token-keyword">if</span> windowsReservedNames[strings.<span class="token-func">ToUpper</span>(cleanName)] {
+        base = <span class="token-string">"_"</span> + base
+    }
+    <span class="token-keyword">return</span> base
+}</code></pre>
+            </div>
+
+            <!-- SECTION 9: CI AND QUALITY GATES -->
+            <h2 id="ci-matrix">9. Continuous Integration (CI) и Сборка Артефактов</h2>
+            <p>
+                Конфигурация <code>.github/workflows/ci.yml</code> обеспечивает кроссплатформенную проверку качества при каждом пуше в ветку <code>main</code>:
+            </p>
+            <ul>
+                <li><strong>Linux amd64:</strong> <code>ubuntu-latest</code> с запуском <code>go test -v -race ./...</code></li>
+                <li><strong>Windows amd64:</strong> <code>windows-latest</code> с запуском <code>go test -v ./...</code></li>
+                <li><strong>macOS arm64:</strong> <code>macos-latest</code> с запуском <code>go test -v ./...</code></li>
+            </ul>
+            <p>
+                На каждом раннере выполняются обязательные Quality Gates:
+            </p>
+            <div class="code-container">
+                <div class="code-header">
+                    <span class="code-title"><span class="code-dot amber"></span> Обязательные Quality Gates</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Скопировать</button>
+                </div>
+                <pre class="code-block"><code>go test -v ./...
+go vet ./...
+go build ./...
+<span class="token-comment"># на Linux дополнительно:</span>
+go test -race ./...</code></pre>
+            </div>
+
+            <!-- SECTION 10: JUNIOR LESSONS -->
+            <h2 id="junior-lessons">10. Уроки и Паттерны для Go-Джуниоров</h2>
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Урок 1: Опасность defer в циклах</div>
+                <p>
+                    Никогда не пишите <code>defer resp.Body.Close()</code> внутри цикла <code>for</code>. Инструкция <code>defer</code> выполняется не на следующей итерации цикла, а <strong>только при выходе из окружающей функции</strong>! В цикле на 1000 элементов программа исчерпает лимит сокетов ОС. Выносите тело итерации в отдельную функцию (например, <code>processCandidate</code>), и тогда <code>defer</code> сработает мгновенно по завершении обработки одного элемента.
+                </p>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Урок 2: Разрешение симлинков через filepath.EvalSymlinks</div>
+                <p>
+                    Если бинарник запущен через симлинк (например, <code>/usr/local/bin/gleanomess -> /opt/gleanomess/gleanomess</code>), наивный <code>os.Executable()</code> вернет путь к симлинку, и папка сайта создастся в системном каталоге. Вызов <code>filepath.EvalSymlinks</code> вычисляет настоящий физический путь.
+                </p>
+            </div>
+
+            <div class="callout callout-tip">
+                <div class="callout-header">💡 Урок 3: Мокирование HTTP в тестах через httptest.Server</div>
+                <p>
+                    Никогда не тестируйте скрейпер или загрузчик, обращаясь к реальным сайтам в интернете (они могут изменить разметку, упасть или заблокировать CI). Используйте <code>httptest.NewServer(http.HandlerFunc(...))</code> — это полноценный локальный веб-сервер Go, поднимающийся на случайном порту за миллисекунды.
+                </p>
+            </div>
+
+        </main>
+
+        <!-- Right Table of Contents -->
+        <aside class="toc">
+            <div class="toc-title">На этой странице</div>
+            <ul class="toc-list">
+                <li class="toc-item"><a href="#intro">Введение</a></li>
+                <li class="toc-item"><a href="#v011-whats-new">Что нового в v0.1.1</a></li>
+                <li class="toc-item"><a href="#pipeline">1. Архитектурный конвейер</a></li>
+                <li class="toc-item"><a href="#scope-invariants">2. 16 Инвариантов</a></li>
+                <li class="toc-item"><a href="#glossary">3. Инженерный Глоссарий</a></li>
+                <li class="toc-item"><a href="#code-main">4. Точка входа main.go</a></li>
+                <li class="toc-item"><a href="#target-dir">Вычисление каталога</a></li>
+                <li class="toc-item"><a href="#code-scraper">5. Скрейпер и Слоты</a></li>
+                <li class="toc-item"><a href="#ranking-levels">10 уровней ранжирования</a></li>
+                <li class="toc-item"><a href="#code-jsonld">Семантика JSON-LD</a></li>
+                <li class="toc-item"><a href="#code-downloader">6. Загрузчик и Фолбэки</a></li>
+                <li class="toc-item"><a href="#overflow-safety">Truncation Safety</a></li>
+                <li class="toc-item"><a href="#code-dedup">7. Атомарная Дедупликация</a></li>
+                <li class="toc-item"><a href="#code-imageinfo">8. Форматы и Имена</a></li>
+                <li class="toc-item"><a href="#code-naming">Санитизация имен</a></li>
+                <li class="toc-item"><a href="#ci-matrix">9. GitHub Actions CI</a></li>
+                <li class="toc-item"><a href="#junior-lessons">10. Уроки для Джуниоров</a></li>
+            </ul>
+        </aside>
+    </div>
+
+    <script>
+        function switchVersion(ver) {
+            if (ver === '0.1.0') {
+                window.location.href = 'v0.1.0.html';
+            } else if (ver === '0.1.1') {
+                window.location.href = 'v0.1.1.html';
+            }
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            const elements = document.querySelectorAll('main h2, main h3, .callout, .walkthrough-table tr');
+            if (!query) {
+                elements.forEach(el => el.style.opacity = '1');
+                return;
+            }
+            elements.forEach(el => {
+                const text = el.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    el.style.opacity = '1';
+                } else {
+                    el.style.opacity = '0.35';
+                }
+            });
+        });
+
+        function copyCode(btn) {
+            const pre = btn.closest('.code-container').querySelector('pre');
+            navigator.clipboard.writeText(pre.innerText).then(() => {
+                const originalText = btn.innerText;
+                btn.innerText = 'Скопировано!';
+                btn.style.color = '#ffb84d';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style.color = '';
+                }, 1800);
+            });
+        }
+
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('main h2, main h3');
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                if (pageYOffset >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.toc-item a, .nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>
