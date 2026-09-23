@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"net/url"
@@ -18,7 +20,11 @@ import (
 
 const version = "0.1.1"
 
-var invalidHostCharsRegex = regexp.MustCompile(`[^a-zA-Z0-9.\-_]`)
+var (
+	invalidHostCharsRegex = regexp.MustCompile(`[^a-zA-Z0-9.\-_]`)
+	nonAlphaNumRegex      = regexp.MustCompile(`[^a-zA-Z0-9_\-]+`)
+	multiDashRegex        = regexp.MustCompile(`-+`)
+)
 
 func main() {
 	exitCode := run(os.Args[1:])
@@ -198,7 +204,8 @@ func run(args []string) int {
 }
 
 // resolveTargetDir determines the output directory for a given base and parsed URL.
-// Directory name is the hostname with only "www." prefix removed and characters sanitized.
+// Directory structure is: <baseDir>/<sanitizedHost>/<pageFolder>
+// where pageFolder is derived from the URL path slug and a deterministic short hash.
 func resolveTargetDir(customBaseDir string, u *url.URL) (string, error) {
 	host := u.Hostname()
 	if host == "" {
@@ -221,6 +228,8 @@ func resolveTargetDir(customBaseDir string, u *url.URL) (string, error) {
 		sanitizedHost = "site"
 	}
 
+	pageFolder := buildPageFolderName(u)
+
 	var baseDir string
 	if customBaseDir != "" {
 		baseDir = customBaseDir
@@ -236,7 +245,42 @@ func resolveTargetDir(customBaseDir string, u *url.URL) (string, error) {
 		baseDir = filepath.Dir(exePath)
 	}
 
-	return filepath.Join(baseDir, sanitizedHost), nil
+	return filepath.Join(baseDir, sanitizedHost, pageFolder), nil
+}
+
+// buildPageFolderName creates a deterministic, filesystem-safe folder name
+// composed of a normalized path slug and a short SHA-256 hash of the initial URL.
+func buildPageFolderName(u *url.URL) string {
+	cleanURL := *u
+	cleanURL.Scheme = strings.ToLower(cleanURL.Scheme)
+	cleanURL.Host = strings.ToLower(cleanURL.Host)
+	cleanURL.Fragment = ""
+
+	hasher := sha256.New()
+	hasher.Write([]byte(cleanURL.String()))
+	shortHash := hex.EncodeToString(hasher.Sum(nil))[:8]
+
+	pathStr := u.Path
+	if unescaped, err := url.PathUnescape(pathStr); err == nil {
+		pathStr = unescaped
+	}
+
+	slug := strings.Trim(pathStr, "/")
+	slug = nonAlphaNumRegex.ReplaceAllString(slug, "-")
+	slug = multiDashRegex.ReplaceAllString(slug, "-")
+	slug = strings.ToLower(slug)
+	slug = strings.Trim(slug, "-_.")
+
+	const maxSlugLen = 64
+	if len(slug) > maxSlugLen {
+		slug = strings.TrimRight(slug[:maxSlugLen], "-_.")
+	}
+
+	if slug == "" {
+		slug = "root"
+	}
+
+	return slug + "-" + shortHash
 }
 
 func normalizeArgs(args []string) []string {

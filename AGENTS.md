@@ -74,7 +74,7 @@ The codebase is organized into small, single-purpose packages under `cmd/` and `
 12. **Never silently accept truncated downloads.** When response payloads exceed the internal download safety limit (~500 MiB), detect overflow (`maxImageBytes + 1`), fail the download, delete the temporary file, and never finalize truncated data as an image.
 13. **HTTP response bodies must be closed on every ownership path.** Every `Response.Body` must be guaranteed to close, including permanent errors (400, 401, 403, 404), redirect errors, retry exhaustion, and intermediate status checks.
 14. **A failed image must not abort the whole page job.** Transient or 404 image errors increment the error count but allow other image slots to complete.
-15. **Default output is beside the executable.** Output directory defaults to `filepath.Dir(exePath)/<sanitized_host>/` (evaluating symlinks).
+15. **Default output is beside the executable.** Output directory defaults to `filepath.Dir(exePath)/<sanitized_host>/<page_folder>/` (evaluating symlinks), partitioning downloads deterministically by initial target URL (`<path-slug>-<short-hash>`).
 16. **Do not silently expand the project into a browser/crawler framework.** Respect explicit scope boundaries.
 
 ---

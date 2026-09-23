@@ -80,7 +80,7 @@ CGO_ENABLED=0 go build -o gleanomess ./cmd/gleanomess
 gleanomess https://example.com/gallery
 ```
 
-By default, an output directory named after the webpage hostname (with prefix `www.` removed, e.g. `example.com/`) is created **beside the `gleanomess` executable** (evaluating symlinks).
+By default, an output directory structured as `<hostname>/<path-slug>-<short-hash>/` (with prefix `www.` removed, e.g. `example.com/gallery-8197cb32/`) is created **beside the `gleanomess` executable** (evaluating symlinks). This partitions downloads per initial target URL and prevents different galleries on the same domain from mixing files.
 
 ### Filtering by Size (`--limit-size`)
 
@@ -98,13 +98,13 @@ Images with their largest dimension strictly less than `N` are skipped (or trigg
 
 ### Custom Output Directory (`--output-dir`)
 
-Overrides the base directory where the site folder is created:
+Overrides the base directory where the site and page folder is created:
 
 ```bash
 gleanomess https://example.com/gallery --output-dir /home/user/Downloads
 ```
 
-This creates `/home/user/Downloads/example.com/`.
+This creates `/home/user/Downloads/example.com/gallery-8197cb32/`.
 
 ### Concurrency Control (`--workers`)
 
